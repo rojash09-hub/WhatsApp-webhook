@@ -21,6 +21,11 @@ const SHEETS = {
 // 🔠 MAYÚSCULAS
 const upper = (text) => (text ? text.toString().toUpperCase() : "");
 
+// 🟢 HEALTH CHECK (OBLIGATORIO PARA FLOW)
+app.get("/", (req, res) => {
+  res.status(200).json({ status: "ok" });
+});
+
 // 📲 ENVIAR MENSAJE
 async function enviarMensaje(numero, mensaje) {
   try {
@@ -120,11 +125,16 @@ async function guardarEnSheet(cliente, registroBase, extras) {
   }
 }
 
-// ✅ VERIFICACIÓN META
+// ✅ WEBHOOK VERIFICACIÓN + HEALTH CHECK
 app.get("/webhook", (req, res) => {
   const mode = req.query["hub.mode"];
   const token = req.query["hub.verify_token"];
   const challenge = req.query["hub.challenge"];
+
+  // 🔥 HEALTH CHECK PARA FLOW
+  if (!mode) {
+    return res.status(200).json({ status: "ok" });
+  }
 
   if (mode === "subscribe" && token === VERIFY_TOKEN) {
     console.log("✅ Webhook verificado");
@@ -148,13 +158,11 @@ app.post("/webhook", async (req, res) => {
     if (mensajeTexto) {
       const texto = mensajeTexto.trim().toLowerCase();
 
-      // ✅ SOLO XF
       if (["xf", "taxi", "reserva"].includes(texto)) {
         await enviarFlow(numeroRemitente);
         return res.sendStatus(200);
       }
 
-      // 🔒 XF + NUMERO (SOLO TÚ)
       if (numeroRemitente === "51961507276" && texto.startsWith("xf ")) {
         const partes = texto.split(" ");
         let numeroDestino = partes[1];
