@@ -6,24 +6,42 @@ const { google } = require("googleapis");
 const app = express();
 app.use(bodyParser.json());
 
-// 🔐 VARIABLES (RENDER)
+// 🔐 VARIABLES
 const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
 const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
 
-// 📊 SHEETS POR CLIENTE
+// 📊 SHEETS
 const SHEETS = {
-  EXALMAR: "1LM9JMK8yySI9CVCe785bDdsi-j1fFaJPpvIE19zDkiw",
-  CLIENTE_2: "SHEET_ID_2",
-  CLIENTE_3: "SHEET_ID_3"
+  EXALMAR: "1LM9JMK8yySI9CVCe785bDdsi-j1fFaJPpvIE19zDkiw"
 };
 
 // 🔠 MAYÚSCULAS
 const upper = (text) => (text ? text.toString().toUpperCase() : "");
 
-// 🟢 HEALTH CHECK (OBLIGATORIO PARA FLOW)
+// 🟢 HEALTH CHECK GLOBAL
 app.get("/", (req, res) => {
   res.status(200).json({ status: "ok" });
+});
+
+// 🟢 WEBHOOK GET (VERIFICACIÓN + HEALTH CHECK)
+app.get("/webhook", (req, res) => {
+  const mode = req.query["hub.mode"];
+  const token = req.query["hub.verify_token"];
+  const challenge = req.query["hub.challenge"];
+
+  // 🔥 HEALTH CHECK (Flow necesita esto)
+  if (!mode && !token && !challenge) {
+    return res.status(200).json({ status: "ok" });
+  }
+
+  // 🔐 VERIFICACIÓN META
+  if (mode === "subscribe" && token === VERIFY_TOKEN) {
+    console.log("✅ Webhook verificado");
+    return res.status(200).send(challenge);
+  }
+
+  return res.status(403).send("Forbidden");
 });
 
 // 📲 ENVIAR MENSAJE
@@ -45,7 +63,7 @@ async function enviarMensaje(numero, mensaje) {
       }
     );
   } catch (error) {
-    console.error("Error enviando mensaje:", error.response?.data || error);
+    console.error("❌ Error mensaje:", error.response?.data || error);
   }
 }
 
@@ -125,60 +143,21 @@ async function guardarEnSheet(cliente, registroBase, extras) {
   }
 }
 
-// ✅ WEBHOOK VERIFICACIÓN + HEALTH CHECK
-app.get("/webhook", (req, res) => {
-  const mode = req.query["hub.mode"];
-  const token = req.query["hub.verify_token"];
-  const challenge = req.query["hub.challenge"];
-
-  // 🔥 HEALTH CHECK PARA FLOW
-  if (!mode) {
-    return res.status(200).json({ status: "ok" });
-  }
-
-  if (mode === "subscribe" && token === VERIFY_TOKEN) {
-    console.log("✅ Webhook verificado");
-    return res.status(200).send(challenge);
-  }
-
-  return res.sendStatus(403);
-});
-
 // 🚀 WEBHOOK PRINCIPAL
 app.post("/webhook", async (req, res) => {
   try {
     const entry = req.body?.entry?.[0]?.changes?.[0]?.value;
     if (!entry) return res.sendStatus(200);
 
-    const numeroRemitente = entry?.messages?.[0]?.from;
-
-    // 🔥 TEXTO (COMANDOS)
+    const numero = entry?.messages?.[0]?.from;
     const mensajeTexto = entry?.messages?.[0]?.text?.body;
 
+    // 🔥 COMANDOS
     if (mensajeTexto) {
       const texto = mensajeTexto.trim().toLowerCase();
 
       if (["xf", "taxi", "reserva"].includes(texto)) {
-        await enviarFlow(numeroRemitente);
-        return res.sendStatus(200);
-      }
-
-      if (numeroRemitente === "51961507276" && texto.startsWith("xf ")) {
-        const partes = texto.split(" ");
-        let numeroDestino = partes[1];
-
-        if (!numeroDestino) return res.sendStatus(200);
-
-        if (!numeroDestino.startsWith("51")) {
-          numeroDestino = "51" + numeroDestino;
-        }
-
-        await enviarFlow(numeroDestino);
-        await enviarMensaje(
-          numeroRemitente,
-          `✅ Formulario enviado a ${numeroDestino}`
-        );
-
+        await enviarFlow(numero);
         return res.sendStatus(200);
       }
     }
@@ -186,8 +165,6 @@ app.post("/webhook", async (req, res) => {
     // 📥 FORMULARIO
     const form = entry?.messages?.[0]?.interactive?.nfm_reply?.response_json;
     if (!form) return res.sendStatus(200);
-
-    const cliente = form.cliente || "EXALMAR";
 
     const registroBase = {
       titulo: "EXALMAR FLOTA",
@@ -218,39 +195,25 @@ app.post("/webhook", async (req, res) => {
       }
     }
 
-    await guardarEnSheet(cliente, registroBase, extras);
+    await guardarEnSheet("EXALMAR", registroBase, extras);
 
-    let mensaje = `🚖 EXALMAR FLOTA - NUEVA RESERVA\n\n`;
+    let mensaje = `🚖 NUEVA RESERVA\n\n`;
 
-    if (registroBase.nombre)
-      mensaje += `👤 Nombre: ${registroBase.nombre}\n`;
-    if (registroBase.inicio)
-      mensaje += `📍 Inicio: ${registroBase.inicio}\n`;
-    if (registroBase.destino)
-      mensaje += `🏁 Destino: ${registroBase.destino}\n`;
-    if (registroBase.fecha)
-      mensaje += `📅 Fecha: ${registroBase.fecha}\n`;
-    if (registroBase.hora)
-      mensaje += `⏰ Hora: ${registroBase.hora}\n`;
-    if (registroBase.autoriza)
-      mensaje += `✅ Autoriza: ${registroBase.autoriza}\n`;
+    for (const key in registroBase) {
+      if (registroBase[key]) {
+        mensaje += `${key.toUpperCase()}: ${registroBase[key]}\n`;
+      }
+    }
 
     for (const key in extras) {
-      mensaje += `🔹 ${key.toUpperCase()}: ${extras[key]}\n`;
+      mensaje += `${key.toUpperCase()}: ${extras[key]}\n`;
     }
 
-    mensaje += `\n📌 Registro: ${registroBase.fecha_registro}`;
-
-    await enviarMensaje("51961507276", mensaje);
-    await enviarMensaje("51986767350", mensaje);
-
-    if (numeroRemitente) {
-      await enviarMensaje(numeroRemitente, mensaje);
-    }
+    await enviarMensaje(numero, mensaje);
 
     res.sendStatus(200);
   } catch (error) {
-    console.error("ERROR:", error);
+    console.error("❌ ERROR:", error);
     res.sendStatus(500);
   }
 });
@@ -258,5 +221,5 @@ app.post("/webhook", async (req, res) => {
 // 🚀 SERVER
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log("Servidor corriendo en puerto", PORT);
+  console.log("🚀 Servidor corriendo en puerto", PORT);
 });
