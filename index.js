@@ -13,6 +13,9 @@ const PRIVATE_KEY = process.env.PRIVATE_KEY_FLOW
   ? process.env.PRIVATE_KEY_FLOW.replace(/\\n/g, "\n").replace(/\r/g, "")
   : null;
 
+// 🧪 DEBUG (puedes borrar luego)
+console.log("PRIVATE_KEY:", PRIVATE_KEY ? "OK" : "NULL");
+
 // 🟢 HEALTH CHECK
 app.get("/", (req, res) => {
   res.status(200).json({ status: "ok" });
@@ -37,6 +40,10 @@ app.get("/webhook", (req, res) => {
 
 // 🔓 DESCIFRAR FLOW
 function decryptFlowData(body) {
+  if (!PRIVATE_KEY) {
+    throw new Error("PRIVATE_KEY es NULL");
+  }
+
   const encryptedAesKey = Buffer.from(body.encrypted_aes_key, "base64");
   const iv = Buffer.from(body.initial_vector, "base64");
   const encryptedData = Buffer.from(body.encrypted_flow_data, "base64");
@@ -47,39 +54,37 @@ function decryptFlowData(body) {
       padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
       oaepHash: "sha256",
       format: "pem",
-      type: "pkcs1" // 🔥 CLAVE PARA TU FORMATO
+      type: "pkcs1"
     },
     encryptedAesKey
   );
 
   const decipher = crypto.createDecipheriv("aes-256-cbc", aesKey, iv);
 
-  let decrypted = decipher.update(encryptedData);
-  decrypted = Buffer.concat([decrypted, decipher.final()]);
+  const decrypted = Buffer.concat([
+    decipher.update(encryptedData),
+    decipher.final()
+  ]);
 
   return {
-    data: JSON.parse(decrypted.toString()),
+    data: JSON.parse(decrypted.toString("utf8")),
     aesKey,
     iv
   };
 }
 
-// 🔐 CIFRAR RESPUESTA (FIX REAL)
+// 🔐 CIFRAR RESPUESTA
 function encryptResponse(data, aesKey, iv) {
-  try {
-    const cipher = crypto.createCipheriv("aes-256-cbc", aesKey, iv);
+  const cipher = crypto.createCipheriv("aes-256-cbc", aesKey, iv);
 
-    const json = JSON.stringify(data);
+  const payload = Buffer.from(JSON.stringify(data), "utf8");
 
-    let encrypted = cipher.update(json, "utf8");
-    encrypted = Buffer.concat([encrypted, cipher.final()]);
+  const encrypted = Buffer.concat([
+    cipher.update(payload),
+    cipher.final()
+  ]);
 
-    return encrypted.toString("base64");
-
-  } catch (err) {
-    console.error("❌ ERROR CIFRANDO:", err);
-    return null;
-  }
+  return encrypted.toString("base64");
 }
 
 // 🚀 WEBHOOK PRINCIPAL
@@ -87,48 +92,30 @@ app.post("/webhook", async (req, res) => {
   try {
     const body = req.body;
 
-    // 🔐 FLOW CIFRADO
     if (body.encrypted_flow_data) {
       console.log("🔐 Flow cifrado recibido");
 
-      try {
-        const { data, aesKey, iv } = decryptFlowData(body);
+      const { data, aesKey, iv } = decryptFlowData(body);
 
-        console.log("✅ DESCIFRADO:", data);
+      console.log("✅ DESCIFRADO:", data);
 
-        const response = {
-          version: "1.0",
-          data: {}
-        };
+      const response = {
+        version: "1.0",
+        data: {}
+      };
 
-        const encryptedResponse = encryptResponse(response, aesKey, iv);
+      const encryptedResponse = encryptResponse(response, aesKey, iv);
 
-        if (!encryptedResponse) {
-          console.error("❌ FALLÓ CIFRADO");
-
-          return res.status(200).json({
-            encrypted_response: "AA==" // fallback válido
-          });
-        }
-
-        return res.status(200).json({
-          encrypted_response: encryptedResponse
-        });
-
-      } catch (err) {
-        console.error("❌ ERROR DESCIFRANDO:", err);
-
-        return res.status(200).json({
-          encrypted_response: "AA=="
-        });
-      }
+      return res.status(200).json({
+        encrypted_response: encryptedResponse
+      });
     }
 
     return res.sendStatus(200);
 
   } catch (error) {
     console.error("❌ ERROR GENERAL:", error);
-    res.sendStatus(500);
+    return res.sendStatus(500);
   }
 });
 
