@@ -1,266 +1,184 @@
 const express = require("express");
+const bodyParser = require("body-parser");
+const axios = require("axios");
 const { google } = require("googleapis");
 
 const app = express();
-app.use(express.json());
+app.use(bodyParser.json());
 
-const PORT = process.env.PORT || 3000;
-const VERIFY_TOKEN = "mi_token_123";
+// 🔐 VARIABLES (CONFIGURAR EN RENDER)
+const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
+const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
+const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
 
-// ADMINISTRADOR
-const ADMIN_NUMBER = "51961507276";
+// 📊 SHEETS POR CLIENTE
+const SHEETS = {
+  EXALMAR: "1LM9JMK8yySI9CVCe785bDdsi-j1fFaJPpvIE19zDkiw",
+  CLIENTE_2: "SHEET_ID_2",
+  CLIENTE_3: "SHEET_ID_3"
+};
 
-// WHATSAPP
-const PHONE_NUMBER_ID = "1178025232052723";
-const FLOW_ID = "2036829347244331";
+// 🔠 MAYÚSCULAS
+const upper = (text) => (text ? text.toString().toUpperCase() : "");
 
-// GOOGLE SHEETS
-const SHEET_ID = "16x5ZnL_siorYyMLTKPqOAUGaflUUuGp5wCMjVViTtMs";
-const SHEET_NAME = "Data";
-
-const auth = new google.auth.GoogleAuth({
-  credentials: JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT),
-  scopes: ["https://www.googleapis.com/auth/spreadsheets"]
-});
-
-// GUARDAR EN SHEETS
-async function guardarReserva(data) {
-
-  const client = await auth.getClient();
-
-  const sheets = google.sheets({
-    version: "v4",
-    auth: client
-  });
-
-  const fechaRegistro = new Date().toLocaleString("es-PE");
-
-  await sheets.spreadsheets.values.append({
-    spreadsheetId: SHEET_ID,
-    range: `${SHEET_NAME}!A:G`,
-    valueInputOption: "USER_ENTERED",
-    requestBody: {
-      values: [[
-        fechaRegistro,
-        data.nombre || "",
-        data.inicio || "",
-        data.destino || "",
-        data.fecha || "",
-        data.hora || "",
-        data.autoriza || ""
-      ]]
-    }
-  });
-
-  console.log("Reserva guardada en Google Sheets");
-}
-
-// NOTIFICAR OPERADORES
-async function notificarOperadores(data) {
-
-  const numeros = [
-    "51961507276",
-    "51986767350"
-  ];
-
-  const mensaje =
-`🚕 NUEVA RESERVA
-
-👤 ${data.nombre}
-📍 Inicio: ${data.inicio}
-🏁 Destino: ${data.destino}
-📅 Fecha: ${data.fecha}
-⏰ Hora: ${data.hora}
-✅ Autoriza: ${data.autoriza}`;
-
-  for (const numero of numeros) {
-
-    await fetch(
-      `https://graph.facebook.com/v23.0/${PHONE_NUMBER_ID}/messages`,
+// 📲 ENVIAR MENSAJE
+async function enviarMensaje(numero, mensaje) {
+  try {
+    await axios.post(
+      `https://graph.facebook.com/v18.0/${PHONE_NUMBER_ID}/messages`,
       {
-        method: "POST",
+        messaging_product: "whatsapp",
+        to: numero,
+        type: "text",
+        text: { body: mensaje }
+      },
+      {
         headers: {
-          "Authorization":
-            `Bearer ${process.env.WHATSAPP_TOKEN}`,
+          Authorization: `Bearer ${WHATSAPP_TOKEN}`,
           "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          messaging_product: "whatsapp",
-          to: numero,
-          type: "text",
-          text: {
-            body: mensaje
-          }
-        })
+        }
       }
     );
-
+  } catch (error) {
+    console.error("Error enviando mensaje:", error.response?.data || error);
   }
-
-  console.log("Operadores notificados");
 }
 
-// ENVIAR FLOW
-async function enviarFlow(numeroDestino) {
+// 📊 GUARDAR EN GOOGLE SHEETS (MULTI + HÍBRIDO)
+async function guardarEnSheet(cliente, registroBase, extras) {
+  try {
+    const auth = new google.auth.GoogleAuth({
+      credentials: JSON.parse(process.env.GOOGLE_CREDENTIALS),
+      scopes: ["https://www.googleapis.com/auth/spreadsheets"]
+    });
 
-  await fetch(
-    `https://graph.facebook.com/v23.0/${PHONE_NUMBER_ID}/messages`,
-    {
-      method: "POST",
-      headers: {
-        "Authorization":
-          `Bearer ${process.env.WHATSAPP_TOKEN}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        messaging_product: "whatsapp",
-        to: numeroDestino,
-        type: "interactive",
-        interactive: {
-          type: "flow",
-          header: {
-            type: "text",
-            text: "Reserva Taxi"
-          },
-          body: {
-            text: "Complete su reserva"
-          },
-          action: {
-            name: "flow",
-            parameters: {
-              flow_message_version: "3",
-              flow_token: Date.now().toString(),
-              flow_id: FLOW_ID,
-              flow_cta: "Reservar",
-              flow_action: "navigate",
-              flow_action_payload: {
-                screen: "RESERVA_TAXI"
-              }
-            }
-          }
-        }
-      })
-    }
-  );
+    const sheets = google.sheets({ version: "v4", auth });
 
-  console.log(
-    "Flow enviado a: " + numeroDestino
-  );
+    const sheetId = SHEETS[cliente] || SHEETS["EXALMAR"];
+
+    const values = [
+      [
+        registroBase.titulo,
+        registroBase.fecha,
+        registroBase.hora,
+        registroBase.autoriza,
+        registroBase.nombre,
+        registroBase.inicio,
+        registroBase.destino,
+        JSON.stringify(extras),
+        registroBase.fecha_registro
+      ]
+    ];
+
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: sheetId,
+      range: "Data!A:I",
+      valueInputOption: "USER_ENTERED",
+      requestBody: { values }
+    });
+
+    console.log(`✅ Guardado en Sheet de ${cliente}`);
+
+  } catch (error) {
+    console.error("❌ Error Sheets:", error);
+  }
 }
 
-// VERIFICAR WEBHOOK
+// ✅ VERIFICACIÓN META
 app.get("/webhook", (req, res) => {
-
   const mode = req.query["hub.mode"];
   const token = req.query["hub.verify_token"];
   const challenge = req.query["hub.challenge"];
 
-  if (mode && token === VERIFY_TOKEN) {
+  if (mode === "subscribe" && token === VERIFY_TOKEN) {
+    console.log("✅ Webhook verificado");
     return res.status(200).send(challenge);
   }
 
-  res.sendStatus(403);
+  return res.sendStatus(403);
 });
 
-// WEBHOOK PRINCIPAL
+// 🚀 WEBHOOK PRINCIPAL
 app.post("/webhook", async (req, res) => {
-
   try {
+    const entry = req.body?.entry?.[0]?.changes?.[0]?.value;
+    if (!entry) return res.sendStatus(200);
 
-    console.log("Payload recibido:");
-    console.log(JSON.stringify(req.body, null, 2));
+    const numeroCliente = entry?.messages?.[0]?.from;
+    const form = entry?.messages?.[0]?.interactive?.nfm_reply?.response_json;
 
-    const message =
-      req.body?.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
+    if (!form) return res.sendStatus(200);
 
-    // MENSAJES DE TEXTO
-    if (message?.type === "text") {
+    const cliente = form.cliente || "EXALMAR";
 
-      const texto =
-        message?.text?.body?.trim().toLowerCase();
+    // 🔥 BASE
+    const registroBase = {
+      titulo: "EXALMAR FLOTA",
+      nombre: "",
+      inicio: "",
+      destino: "",
+      fecha: "",
+      hora: "",
+      autoriza: "",
+      fecha_registro: new Date().toLocaleString("es-PE")
+    };
 
-      const numeroCliente =
-        message.from;
+    const extras = {};
 
-      if (texto.startsWith("ef")) {
+    // 🔥 PROCESAR FORMULARIO (HÍBRIDO)
+    for (const key in form) {
+      let value = form[key];
 
-        const partes =
-          texto.split(" ");
+      if (value === "OTROS" && form[`${key}_otro`]) {
+        value = form[`${key}_otro`];
+      }
 
-        // ADMINISTRADOR
-        if (
-          numeroCliente === ADMIN_NUMBER &&
-          partes.length === 2
-        ) {
+      value = upper(value);
 
-          const numeroDestino =
-            partes[1];
-
-          await enviarFlow(
-            numeroDestino
-          );
-
-        } else {
-
-          // CLIENTE NORMAL
-          await enviarFlow(
-            numeroCliente
-          );
-        }
+      if (key in registroBase) {
+        registroBase[key] = value;
+      } else {
+        extras[key] = value;
       }
     }
 
-    // FLOW COMPLETADO
-    const rawData =
-      message?.interactive?.nfm_reply
-        ?.response_json;
+    // 📊 GUARDAR
+    await guardarEnSheet(cliente, registroBase, extras);
 
-    const flowData =
-      rawData
-        ? JSON.parse(rawData)
-        : null;
+    // 🧾 MENSAJE
+    let mensaje = `🚖 EXALMAR FLOTA - NUEVA RESERVA\n\n`;
 
-    if (flowData) {
+    if (registroBase.nombre) mensaje += `👤 Nombre: ${registroBase.nombre}\n`;
+    if (registroBase.inicio) mensaje += `📍 Inicio: ${registroBase.inicio}\n`;
+    if (registroBase.destino) mensaje += `🏁 Destino: ${registroBase.destino}\n`;
+    if (registroBase.fecha) mensaje += `📅 Fecha: ${registroBase.fecha}\n`;
+    if (registroBase.hora) mensaje += `⏰ Hora: ${registroBase.hora}\n`;
+    if (registroBase.autoriza) mensaje += `✅ Autoriza: ${registroBase.autoriza}\n`;
 
-      console.log(
-        "Datos Flow:"
-      );
+    for (const key in extras) {
+      mensaje += `🔹 ${key.toUpperCase()}: ${extras[key]}\n`;
+    }
 
-      console.log(
-        flowData
-      );
+    mensaje += `\n📌 Registro: ${registroBase.fecha_registro}`;
 
-      await guardarReserva(
-        flowData
-      );
+    // 📲 ENVÍOS
+    await enviarMensaje("51961507276", mensaje);
+    await enviarMensaje("51986767350", mensaje);
 
-      await notificarOperadores(
-        flowData
-      );
+    if (numeroCliente) {
+      await enviarMensaje(numeroCliente, mensaje);
     }
 
     res.sendStatus(200);
 
   } catch (error) {
-
-    console.error(
-      "ERROR:"
-    );
-
-    console.error(
-      error
-    );
-
+    console.error("ERROR:", error);
     res.sendStatus(500);
   }
-
 });
 
+// 🚀 SERVER
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-
-  console.log(
-    "Servidor corriendo en puerto " +
-    PORT
-  );
-
+  console.log("Servidor corriendo en puerto", PORT);
 });
