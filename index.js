@@ -1,293 +1,248 @@
 const express = require("express");
 const bodyParser = require("body-parser");
-const crypto = require("crypto");
+const axios = require("axios");
+const { google } = require("googleapis");
 
 const app = express();
+app.use(bodyParser.json());
 
-app.use(bodyParser.json({
-  limit: "10mb"
-}));
-
-// 🔐 VARIABLES
+// 🔐 VARIABLES (RENDER)
 const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
+const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
+const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
 
-// 🔑 PRIVATE KEY
-const PRIVATE_KEY = process.env.PRIVATE_KEY_ACCOUNT
-  ? process.env.PRIVATE_KEY_ACCOUNT
-      .replace(/\\n/g, "\n")
-      .replace(/\r/g, "")
-  : null;
+// 📊 SHEETS POR CLIENTE
+const SHEETS = {
+  EXALMAR: "1LM9JMK8yySI9CVCe785bDdsi-j1fFaJPpvIE19zDkiw",
+  CLIENTE_2: "SHEET_ID_2",
+  CLIENTE_3: "SHEET_ID_3"
+};
 
-// 🧪 DEBUG
-console.log(
-  "PRIVATE_KEY:",
-  PRIVATE_KEY ? "OK" : "NULL"
-);
+// 🔠 MAYÚSCULAS
+const upper = (text) => (text ? text.toString().toUpperCase() : "");
 
-// 🟢 HEALTH CHECK
-app.get("/", (req, res) => {
-  return res.status(200).json({
-    status: "ok"
-  });
-});
-
-// 🟢 WEBHOOK VERIFY
-app.get("/webhook", (req, res) => {
-
-  const mode =
-    req.query["hub.mode"];
-
-  const token =
-    req.query["hub.verify_token"];
-
-  const challenge =
-    req.query["hub.challenge"];
-
-  if (
-    !mode &&
-    !token &&
-    !challenge
-  ) {
-
-    return res
-      .status(200)
-      .json({
-        status: "ok"
-      });
-
+// 📲 ENVIAR MENSAJE
+async function enviarMensaje(numero, mensaje) {
+  try {
+    await axios.post(
+      `https://graph.facebook.com/v18.0/${PHONE_NUMBER_ID}/messages`,
+      {
+        messaging_product: "whatsapp",
+        to: numero,
+        type: "text",
+        text: { body: mensaje }
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+          "Content-Type": "application/json"
+        }
+      }
+    );
+  } catch (error) {
+    console.error("Error enviando mensaje:", error.response?.data || error);
   }
+}
 
-  if (
-    mode === "subscribe" &&
-    token === VERIFY_TOKEN
-  ) {
+// 📲 ENVIAR FLOW
+async function enviarFlow(numero) {
+  try {
+    await axios.post(
+      `https://graph.facebook.com/v18.0/${PHONE_NUMBER_ID}/messages`,
+      {
+        messaging_product: "whatsapp",
+        to: numero,
+        type: "interactive",
+        interactive: {
+          type: "flow",
+          body: {
+            text: "🚖 EXALMAR FLOTA\nSolicita tu taxi aquí:"
+          },
+          action: {
+            name: "flow",
+            parameters: {
+              flow_id: "1487962506700406",
+              flow_cta: "Reservar Taxi"
+            }
+          }
+        }
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+          "Content-Type": "application/json"
+        }
+      }
+    );
 
-    return res
-      .status(200)
-      .send(challenge);
+    console.log("✅ Flow enviado a", numero);
+  } catch (error) {
+    console.error("❌ Error Flow:", error.response?.data || error);
+  }
+}
 
+// 📊 GUARDAR EN SHEETS
+async function guardarEnSheet(cliente, registroBase, extras) {
+  try {
+    const auth = new google.auth.GoogleAuth({
+      credentials: JSON.parse(process.env.GOOGLE_CREDENTIALS),
+      scopes: ["https://www.googleapis.com/auth/spreadsheets"]
+    });
+
+    const sheets = google.sheets({ version: "v4", auth });
+
+    const sheetId = SHEETS[cliente] || SHEETS["EXALMAR"];
+
+    const values = [
+      [
+        registroBase.titulo,
+        registroBase.fecha,
+        registroBase.hora,
+        registroBase.autoriza,
+        registroBase.nombre,
+        registroBase.inicio,
+        registroBase.destino,
+        JSON.stringify(extras),
+        registroBase.fecha_registro
+      ]
+    ];
+
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: sheetId,
+      range: "Data!A:I",
+      valueInputOption: "USER_ENTERED",
+      requestBody: { values }
+    });
+
+    console.log(`✅ Guardado en ${cliente}`);
+  } catch (error) {
+    console.error("❌ Error Sheets:", error);
+  }
+}
+
+// ✅ VERIFICACIÓN META
+app.get("/webhook", (req, res) => {
+  const mode = req.query["hub.mode"];
+  const token = req.query["hub.verify_token"];
+  const challenge = req.query["hub.challenge"];
+
+  if (mode === "subscribe" && token === VERIFY_TOKEN) {
+    console.log("✅ Webhook verificado");
+    return res.status(200).send(challenge);
   }
 
   return res.sendStatus(403);
-
 });
 
-// 🔓 DESCIFRAR
-function decryptFlowData(body) {
+// 🚀 WEBHOOK PRINCIPAL
+app.post("/webhook", async (req, res) => {
+  try {
+    const entry = req.body?.entry?.[0]?.changes?.[0]?.value;
+    if (!entry) return res.sendStatus(200);
 
-  if (!PRIVATE_KEY) {
-    throw new Error(
-      "PRIVATE_KEY es NULL"
-    );
-  }
+    const numeroRemitente = entry?.messages?.[0]?.from;
 
-  const encryptedAesKey =
-    Buffer.from(
-      body.encrypted_aes_key,
-      "base64"
-    );
+    // 🔥 TEXTO (COMANDOS)
+    const mensajeTexto = entry?.messages?.[0]?.text?.body;
 
-  const iv =
-    Buffer.from(
-      body.initial_vector,
-      "base64"
-    );
+    if (mensajeTexto) {
+      const texto = mensajeTexto.trim().toLowerCase();
 
-  const encryptedData =
-    Buffer.from(
-      body.encrypted_flow_data,
-      "base64"
-    );
-
-  const aesKey =
-    crypto.privateDecrypt(
-      {
-        key: PRIVATE_KEY,
-        padding:
-          crypto.constants
-            .RSA_PKCS1_OAEP_PADDING,
-        oaepHash: "sha256"
-      },
-      encryptedAesKey
-    );
-
-  console.log(
-    "AES KEY LENGTH:",
-    aesKey.length
-  );
-
-  // ✅ CORREGIDO
-  const decipher =
-    crypto.createDecipheriv(
-      "aes-128-cbc",
-      aesKey,
-      iv
-    );
-
-  const decrypted =
-    Buffer.concat([
-      decipher.update(
-        encryptedData
-      ),
-      decipher.final()
-    ]);
-
-  return {
-    data: JSON.parse(
-      decrypted.toString(
-        "utf8"
-      )
-    ),
-    aesKey,
-    iv
-  };
-
-}
-
-// 🔐 CIFRAR RESPUESTA
-function encryptResponse(
-  response,
-  aesKey,
-  iv
-) {
-
-  // Meta requiere IV invertido
-  const flippedIv =
-    Buffer.from(iv)
-      .reverse();
-
-  // ✅ CORREGIDO
-  const cipher =
-    crypto.createCipheriv(
-      "aes-128-cbc",
-      aesKey,
-      flippedIv
-    );
-
-  const payload =
-    Buffer.from(
-      JSON.stringify(
-        response
-      ),
-      "utf8"
-    );
-
-  const encrypted =
-    Buffer.concat([
-      cipher.update(
-        payload
-      ),
-      cipher.final()
-    ]);
-
-  return encrypted
-    .toString(
-      "base64"
-    );
-
-}
-
-// 🚀 WEBHOOK
-app.post(
-  "/webhook",
-  async (
-    req,
-    res
-  ) => {
-
-    try {
-
-      const body =
-        req.body;
-
-      if (
-        body &&
-        body
-          .encrypted_flow_data
-      ) {
-
-        console.log(
-          "🔐 Flow cifrado recibido"
-        );
-
-        const {
-          data,
-          aesKey,
-          iv
-        } =
-          decryptFlowData(
-            body
-          );
-
-        console.log(
-          "✅ DESCIFRADO:",
-          data
-        );
-
-        const response = {
-          version:
-            "1.0",
-          data: {}
-        };
-
-        const encryptedResponse =
-          encryptResponse(
-            response,
-            aesKey,
-            iv
-          );
-
-        return res
-          .status(
-            200
-          )
-          .json({
-            encrypted_response:
-              encryptedResponse
-          });
-
+      // XF simple
+      if (["xf", "taxi", "reserva"].includes(texto)) {
+        await enviarFlow(numeroRemitente);
+        return res.sendStatus(200);
       }
 
-      return res
-        .sendStatus(
-          200
-        );
+      // XF + número (solo tú)
+      if (numeroRemitente === "51961507276" && texto.startsWith("xf ")) {
+        const partes = texto.split(" ");
+        let numeroDestino = partes[1];
 
-    } catch (
-      error
-    ) {
+        if (!numeroDestino) return res.sendStatus(200);
 
-      console.error(
-        "❌ ERROR GENERAL:",
-        error
-      );
+        if (!numeroDestino.startsWith("51")) {
+          numeroDestino = "51" + numeroDestino;
+        }
 
-      return res
-        .status(
-          500
-        )
-        .send(
-          "Internal Server Error"
-        );
+        await enviarFlow(numeroDestino);
+        await enviarMensaje(numeroRemitente, `✅ Formulario enviado a ${numeroDestino}`);
 
+        return res.sendStatus(200);
+      }
     }
 
+    // 📥 FORMULARIO (SIN CIFRADO)
+    const form = entry?.messages?.[0]?.interactive?.nfm_reply?.response_json;
+
+    if (!form) return res.sendStatus(200);
+
+    const cliente = form.cliente || "EXALMAR";
+
+    const registroBase = {
+      titulo: "EXALMAR FLOTA",
+      nombre: "",
+      inicio: "",
+      destino: "",
+      fecha: "",
+      hora: "",
+      autoriza: "",
+      fecha_registro: new Date().toLocaleString("es-PE")
+    };
+
+    const extras = {};
+
+    for (const key in form) {
+      let value = form[key];
+
+      if (value === "OTROS" && form[`${key}_otro`]) {
+        value = form[`${key}_otro`];
+      }
+
+      value = upper(value);
+
+      if (key in registroBase) {
+        registroBase[key] = value;
+      } else {
+        extras[key] = value;
+      }
+    }
+
+    await guardarEnSheet(cliente, registroBase, extras);
+
+    let mensaje = `🚖 EXALMAR FLOTA - NUEVA RESERVA\n\n`;
+
+    if (registroBase.nombre) mensaje += `👤 Nombre: ${registroBase.nombre}\n`;
+    if (registroBase.inicio) mensaje += `📍 Inicio: ${registroBase.inicio}\n`;
+    if (registroBase.destino) mensaje += `🏁 Destino: ${registroBase.destino}\n`;
+    if (registroBase.fecha) mensaje += `📅 Fecha: ${registroBase.fecha}\n`;
+    if (registroBase.hora) mensaje += `⏰ Hora: ${registroBase.hora}\n`;
+    if (registroBase.autoriza) mensaje += `✅ Autoriza: ${registroBase.autoriza}\n`;
+
+    for (const key in extras) {
+      mensaje += `🔹 ${key.toUpperCase()}: ${extras[key]}\n`;
+    }
+
+    mensaje += `\n📌 Registro: ${registroBase.fecha_registro}`;
+
+    // 📲 ENVÍOS
+    await enviarMensaje("51961507276", mensaje);
+    await enviarMensaje("51986767350", mensaje);
+
+    if (numeroRemitente) {
+      await enviarMensaje(numeroRemitente, mensaje);
+    }
+
+    res.sendStatus(200);
+
+  } catch (error) {
+    console.error("❌ ERROR GENERAL:", error);
+    res.sendStatus(500);
   }
-);
+});
 
 // 🚀 SERVER
-const PORT =
-  process.env.PORT ||
-  3000;
-
-app.listen(
-  PORT,
-  () => {
-
-    console.log(
-      "🚀 Servidor corriendo en puerto",
-      PORT
-    );
-
-  }
-);
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log("Servidor corriendo en puerto", PORT);
+});
