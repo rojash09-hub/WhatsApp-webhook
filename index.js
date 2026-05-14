@@ -19,7 +19,7 @@ const SHEETS = {
 // 🔠 MAYÚSCULAS
 const upper = (text) => (text ? text.toString().toUpperCase() : "");
 
-// 🟢 HEALTH CHECK GLOBAL
+// 🟢 HEALTH CHECK
 app.get("/", (req, res) => {
   res.status(200).json({ status: "ok" });
 });
@@ -30,12 +30,12 @@ app.get("/webhook", (req, res) => {
   const token = req.query["hub.verify_token"];
   const challenge = req.query["hub.challenge"];
 
-  // 🔥 HEALTH CHECK (Flow necesita esto)
+  // 🔥 Health check para Flow
   if (!mode && !token && !challenge) {
     return res.status(200).json({ status: "ok" });
   }
 
-  // 🔐 VERIFICACIÓN META
+  // 🔐 Verificación Meta
   if (mode === "subscribe" && token === VERIFY_TOKEN) {
     console.log("✅ Webhook verificado");
     return res.status(200).send(challenge);
@@ -146,7 +146,20 @@ async function guardarEnSheet(cliente, registroBase, extras) {
 // 🚀 WEBHOOK PRINCIPAL
 app.post("/webhook", async (req, res) => {
   try {
-    const entry = req.body?.entry?.[0]?.changes?.[0]?.value;
+    const body = req.body;
+
+    // 🔥 SOPORTE FLOW CIFRADO (NECESARIO PARA PUBLICAR)
+    if (body.encrypted_flow_data) {
+      console.log("🔐 Flow cifrado recibido (health check)");
+
+      // 👉 RESPUESTA QUE META ACEPTA
+      return res.status(200).json({
+        version: "1.0",
+        data: {}
+      });
+    }
+
+    const entry = body?.entry?.[0]?.changes?.[0]?.value;
     if (!entry) return res.sendStatus(200);
 
     const numero = entry?.messages?.[0]?.from;
@@ -162,7 +175,7 @@ app.post("/webhook", async (req, res) => {
       }
     }
 
-    // 📥 FORMULARIO
+    // 📥 FORMULARIO (NO CIFRADO)
     const form = entry?.messages?.[0]?.interactive?.nfm_reply?.response_json;
     if (!form) return res.sendStatus(200);
 
