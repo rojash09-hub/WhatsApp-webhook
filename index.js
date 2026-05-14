@@ -6,7 +6,7 @@ const { google } = require("googleapis");
 const app = express();
 app.use(bodyParser.json());
 
-// 🔐 VARIABLES (CONFIGURAR EN RENDER)
+// 🔐 VARIABLES (RENDER)
 const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
 const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
@@ -44,7 +44,44 @@ async function enviarMensaje(numero, mensaje) {
   }
 }
 
-// 📊 GUARDAR EN GOOGLE SHEETS (MULTI + HÍBRIDO)
+// 📲 ENVIAR FLOW
+async function enviarFlow(numero) {
+  try {
+    await axios.post(
+      `https://graph.facebook.com/v18.0/${PHONE_NUMBER_ID}/messages`,
+      {
+        messaging_product: "whatsapp",
+        to: numero,
+        type: "interactive",
+        interactive: {
+          type: "flow",
+          body: {
+            text: "🚖 EXALMAR FLOTA\nSolicita tu taxi aquí:"
+          },
+          action: {
+            name: "flow",
+            parameters: {
+              flow_id: "1487962506700406",
+              flow_cta: "Reservar Taxi"
+            }
+          }
+        }
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+          "Content-Type": "application/json"
+        }
+      }
+    );
+
+    console.log("✅ Flow enviado a", numero);
+  } catch (error) {
+    console.error("❌ Error Flow:", error.response?.data || error);
+  }
+}
+
+// 📊 GUARDAR EN SHEETS
 async function guardarEnSheet(cliente, registroBase, extras) {
   try {
     const auth = new google.auth.GoogleAuth({
@@ -77,8 +114,7 @@ async function guardarEnSheet(cliente, registroBase, extras) {
       requestBody: { values }
     });
 
-    console.log(`✅ Guardado en Sheet de ${cliente}`);
-
+    console.log(`✅ Guardado en ${cliente}`);
   } catch (error) {
     console.error("❌ Error Sheets:", error);
   }
@@ -104,14 +140,44 @@ app.post("/webhook", async (req, res) => {
     const entry = req.body?.entry?.[0]?.changes?.[0]?.value;
     if (!entry) return res.sendStatus(200);
 
-    const numeroCliente = entry?.messages?.[0]?.from;
-    const form = entry?.messages?.[0]?.interactive?.nfm_reply?.response_json;
+    const numeroRemitente = entry?.messages?.[0]?.from;
 
+    // 🔥 TEXTO (COMANDOS)
+    const mensajeTexto = entry?.messages?.[0]?.text?.body;
+
+    if (mensajeTexto) {
+      const texto = mensajeTexto.trim().toLowerCase();
+
+      // ✅ SOLO XF (cualquier usuario)
+      if (["xf", "taxi", "reserva"].includes(texto)) {
+        await enviarFlow(numeroRemitente);
+        return res.sendStatus(200);
+      }
+
+      // 🔒 XF + NUMERO (SOLO TÚ)
+      if (numeroRemitente === "51961507276" && texto.startsWith("xf ")) {
+        const partes = texto.split(" ");
+        let numeroDestino = partes[1];
+
+        if (!numeroDestino) return res.sendStatus(200);
+
+        if (!numeroDestino.startsWith("51")) {
+          numeroDestino = "51" + numeroDestino;
+        }
+
+        await enviarFlow(numeroDestino);
+        await enviarMensaje(numeroRemitente, `✅ Formulario enviado a ${numeroDestino}`);
+
+        return res.sendStatus(200);
+      }
+    }
+
+    // 📥 FORMULARIO
+    const form = entry?.messages?.[0]?.interactive?.nfm_reply?.response_json;
     if (!form) return res.sendStatus(200);
 
     const cliente = form.cliente || "EXALMAR";
 
-    // 🔥 BASE
     const registroBase = {
       titulo: "EXALMAR FLOTA",
       nombre: "",
@@ -125,7 +191,6 @@ app.post("/webhook", async (req, res) => {
 
     const extras = {};
 
-    // 🔥 PROCESAR FORMULARIO (HÍBRIDO)
     for (const key in form) {
       let value = form[key];
 
@@ -142,10 +207,8 @@ app.post("/webhook", async (req, res) => {
       }
     }
 
-    // 📊 GUARDAR
     await guardarEnSheet(cliente, registroBase, extras);
 
-    // 🧾 MENSAJE
     let mensaje = `🚖 EXALMAR FLOTA - NUEVA RESERVA\n\n`;
 
     if (registroBase.nombre) mensaje += `👤 Nombre: ${registroBase.nombre}\n`;
@@ -161,12 +224,11 @@ app.post("/webhook", async (req, res) => {
 
     mensaje += `\n📌 Registro: ${registroBase.fecha_registro}`;
 
-    // 📲 ENVÍOS
     await enviarMensaje("51961507276", mensaje);
     await enviarMensaje("51986767350", mensaje);
 
-    if (numeroCliente) {
-      await enviarMensaje(numeroCliente, mensaje);
+    if (numeroRemitente) {
+      await enviarMensaje(numeroRemitente, mensaje);
     }
 
     res.sendStatus(200);
