@@ -1,6 +1,5 @@
 const express = require("express");
 const bodyParser = require("body-parser");
-const axios = require("axios");
 const crypto = require("crypto");
 
 const app = express();
@@ -8,10 +7,8 @@ app.use(bodyParser.json());
 
 // 🔐 VARIABLES
 const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
-const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
-const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
 
-// 🔑 PRIVATE KEY (TU MISMA CLAVE)
+// 🔑 PRIVATE KEY (IMPORTANTE)
 const PRIVATE_KEY = process.env.PRIVATE_KEY_FLOW
   ? process.env.PRIVATE_KEY_FLOW.replace(/\\n/g, "\n").replace(/\r/g, "")
   : null;
@@ -21,7 +18,7 @@ app.get("/", (req, res) => {
   res.status(200).json({ status: "ok" });
 });
 
-// 🟢 VERIFICACIÓN
+// 🟢 VERIFICACIÓN WEBHOOK
 app.get("/webhook", (req, res) => {
   const mode = req.query["hub.mode"];
   const token = req.query["hub.verify_token"];
@@ -38,7 +35,7 @@ app.get("/webhook", (req, res) => {
   return res.sendStatus(403);
 });
 
-// 🔓 DESCIFRAR FLOW (FIX REAL)
+// 🔓 DESCIFRAR FLOW
 function decryptFlowData(body) {
   const encryptedAesKey = Buffer.from(body.encrypted_aes_key, "base64");
   const iv = Buffer.from(body.initial_vector, "base64");
@@ -50,7 +47,7 @@ function decryptFlowData(body) {
       padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
       oaepHash: "sha256",
       format: "pem",
-      type: "pkcs1" // 🔥 ESTE ES EL FIX CLAVE
+      type: "pkcs1" // 🔥 CLAVE PARA TU FORMATO
     },
     encryptedAesKey
   );
@@ -67,21 +64,30 @@ function decryptFlowData(body) {
   };
 }
 
-// 🔐 CIFRAR RESPUESTA
+// 🔐 CIFRAR RESPUESTA (FIX REAL)
 function encryptResponse(data, aesKey, iv) {
-  const cipher = crypto.createCipheriv("aes-256-cbc", aesKey, iv);
+  try {
+    const cipher = crypto.createCipheriv("aes-256-cbc", aesKey, iv);
 
-  let encrypted = cipher.update(JSON.stringify(data));
-  encrypted = Buffer.concat([encrypted, cipher.final()]);
+    const json = JSON.stringify(data);
 
-  return encrypted.toString("base64");
+    let encrypted = cipher.update(json, "utf8");
+    encrypted = Buffer.concat([encrypted, cipher.final()]);
+
+    return encrypted.toString("base64");
+
+  } catch (err) {
+    console.error("❌ ERROR CIFRANDO:", err);
+    return null;
+  }
 }
 
-// 🚀 WEBHOOK
+// 🚀 WEBHOOK PRINCIPAL
 app.post("/webhook", async (req, res) => {
   try {
     const body = req.body;
 
+    // 🔐 FLOW CIFRADO
     if (body.encrypted_flow_data) {
       console.log("🔐 Flow cifrado recibido");
 
@@ -97,6 +103,14 @@ app.post("/webhook", async (req, res) => {
 
         const encryptedResponse = encryptResponse(response, aesKey, iv);
 
+        if (!encryptedResponse) {
+          console.error("❌ FALLÓ CIFRADO");
+
+          return res.status(200).json({
+            encrypted_response: "AA==" // fallback válido
+          });
+        }
+
         return res.status(200).json({
           encrypted_response: encryptedResponse
         });
@@ -105,7 +119,7 @@ app.post("/webhook", async (req, res) => {
         console.error("❌ ERROR DESCIFRANDO:", err);
 
         return res.status(200).json({
-          encrypted_response: ""
+          encrypted_response: "AA=="
         });
       }
     }
