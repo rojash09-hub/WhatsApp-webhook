@@ -8,12 +8,12 @@ app.use(bodyParser.json());
 // 🔐 VARIABLES
 const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
 
-// 🔑 PRIVATE KEY (IMPORTANTE)
-const PRIVATE_KEY = process.env.PRIVATE_KEY_FLOW
-  ? process.env.PRIVATE_KEY_FLOW.replace(/\\n/g, "\n").replace(/\r/g, "")
+// 🔑 PRIVATE KEY (CORREGIDO)
+const PRIVATE_KEY = process.env.PRIVATE_KEY_ACCOUNT
+  ? process.env.PRIVATE_KEY_ACCOUNT.replace(/\\n/g, "\n").replace(/\r/g, "")
   : null;
 
-// 🧪 DEBUG (puedes borrar luego)
+// 🧪 DEBUG
 console.log("PRIVATE_KEY:", PRIVATE_KEY ? "OK" : "NULL");
 
 // 🟢 HEALTH CHECK
@@ -121,6 +121,7 @@ app.post("/webhook", async (req, res) => {
 
 // 🚀 SERVER
 const PORT = process.env.PORT || 3000;
+
 app.listen(PORT, () => {
   console.log("🚀 Servidor corriendo en puerto", PORT);
 });
