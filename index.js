@@ -148,7 +148,7 @@ app.post("/webhook", async (req, res) => {
     if (mensajeTexto) {
       const texto = mensajeTexto.trim().toLowerCase();
 
-      // ✅ SOLO XF (cualquier usuario)
+      // ✅ SOLO XF
       if (["xf", "taxi", "reserva"].includes(texto)) {
         await enviarFlow(numeroRemitente);
         return res.sendStatus(200);
@@ -166,7 +166,10 @@ app.post("/webhook", async (req, res) => {
         }
 
         await enviarFlow(numeroDestino);
-        await enviarMensaje(numeroRemitente, `✅ Formulario enviado a ${numeroDestino}`);
+        await enviarMensaje(
+          numeroRemitente,
+          `✅ Formulario enviado a ${numeroDestino}`
+        );
 
         return res.sendStatus(200);
       }
@@ -211,12 +214,18 @@ app.post("/webhook", async (req, res) => {
 
     let mensaje = `🚖 EXALMAR FLOTA - NUEVA RESERVA\n\n`;
 
-    if (registroBase.nombre) mensaje += `👤 Nombre: ${registroBase.nombre}\n`;
-    if (registroBase.inicio) mensaje += `📍 Inicio: ${registroBase.inicio}\n`;
-    if (registroBase.destino) mensaje += `🏁 Destino: ${registroBase.destino}\n`;
-    if (registroBase.fecha) mensaje += `📅 Fecha: ${registroBase.fecha}\n`;
-    if (registroBase.hora) mensaje += `⏰ Hora: ${registroBase.hora}\n`;
-    if (registroBase.autoriza) mensaje += `✅ Autoriza: ${registroBase.autoriza}\n`;
+    if (registroBase.nombre)
+      mensaje += `👤 Nombre: ${registroBase.nombre}\n`;
+    if (registroBase.inicio)
+      mensaje += `📍 Inicio: ${registroBase.inicio}\n`;
+    if (registroBase.destino)
+      mensaje += `🏁 Destino: ${registroBase.destino}\n`;
+    if (registroBase.fecha)
+      mensaje += `📅 Fecha: ${registroBase.fecha}\n`;
+    if (registroBase.hora)
+      mensaje += `⏰ Hora: ${registroBase.hora}\n`;
+    if (registroBase.autoriza)
+      mensaje += `✅ Autoriza: ${registroBase.autoriza}\n`;
 
     for (const key in extras) {
       mensaje += `🔹 ${key.toUpperCase()}: ${extras[key]}\n`;
@@ -232,7 +241,6 @@ app.post("/webhook", async (req, res) => {
     }
 
     res.sendStatus(200);
-
   } catch (error) {
     console.error("ERROR:", error);
     res.sendStatus(500);
