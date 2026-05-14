@@ -1,7 +1,6 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const axios = require("axios");
-const { google } = require("googleapis");
 const crypto = require("crypto");
 
 const app = express();
@@ -12,25 +11,17 @@ const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
 const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
 
-// 🔑 PRIVATE KEY (ARREGLADA)
-const PRIVATE_KEY = process.env.PRIVATE_KEY
-  ? process.env.PRIVATE_KEY.replace(/\\n/g, "\n").replace(/\r/g, "")
+// 🔑 PRIVATE KEY (TU MISMA CLAVE)
+const PRIVATE_KEY = process.env.PRIVATE_KEY_FLOW
+  ? process.env.PRIVATE_KEY_FLOW.replace(/\\n/g, "\n").replace(/\r/g, "")
   : null;
-
-// 📊 SHEETS
-const SHEETS = {
-  EXALMAR: "1LM9JMK8yySI9CVCe785bDdsi-j1fFaJPpvIE19zDkiw"
-};
-
-// 🔠 MAYÚSCULAS
-const upper = (text) => (text ? text.toString().toUpperCase() : "");
 
 // 🟢 HEALTH CHECK
 app.get("/", (req, res) => {
   res.status(200).json({ status: "ok" });
 });
 
-// 🟢 WEBHOOK GET
+// 🟢 VERIFICACIÓN
 app.get("/webhook", (req, res) => {
   const mode = req.query["hub.mode"];
   const token = req.query["hub.verify_token"];
@@ -47,7 +38,7 @@ app.get("/webhook", (req, res) => {
   return res.sendStatus(403);
 });
 
-// 🔓 DESCIFRAR FLOW
+// 🔓 DESCIFRAR FLOW (FIX REAL)
 function decryptFlowData(body) {
   const encryptedAesKey = Buffer.from(body.encrypted_aes_key, "base64");
   const iv = Buffer.from(body.initial_vector, "base64");
@@ -57,7 +48,9 @@ function decryptFlowData(body) {
     {
       key: PRIVATE_KEY,
       padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
-      oaepHash: "sha256"
+      oaepHash: "sha256",
+      format: "pem",
+      type: "pkcs1" // 🔥 ESTE ES EL FIX CLAVE
     },
     encryptedAesKey
   );
@@ -84,107 +77,43 @@ function encryptResponse(data, aesKey, iv) {
   return encrypted.toString("base64");
 }
 
-// 📲 ENVIAR MENSAJE
-async function enviarMensaje(numero, mensaje) {
-  try {
-    await axios.post(
-      `https://graph.facebook.com/v18.0/${PHONE_NUMBER_ID}/messages`,
-      {
-        messaging_product: "whatsapp",
-        to: numero,
-        type: "text",
-        text: { body: mensaje }
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${WHATSAPP_TOKEN}`,
-          "Content-Type": "application/json"
-        }
-      }
-    );
-  } catch (error) {
-    console.error("❌ Error mensaje:", error.response?.data || error);
-  }
-}
-
-// 📲 ENVIAR FLOW
-async function enviarFlow(numero) {
-  try {
-    await axios.post(
-      `https://graph.facebook.com/v18.0/${PHONE_NUMBER_ID}/messages`,
-      {
-        messaging_product: "whatsapp",
-        to: numero,
-        type: "interactive",
-        interactive: {
-          type: "flow",
-          body: {
-            text: "🚖 EXALMAR FLOTA\nSolicita tu taxi aquí:"
-          },
-          action: {
-            name: "flow",
-            parameters: {
-              flow_id: "1487962506700406",
-              flow_cta: "Reservar Taxi"
-            }
-          }
-        }
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${WHATSAPP_TOKEN}`,
-          "Content-Type": "application/json"
-        }
-      }
-    );
-  } catch (error) {
-    console.error("❌ Error Flow:", error.response?.data || error);
-  }
-}
-
-// 🚀 WEBHOOK PRINCIPAL
+// 🚀 WEBHOOK
 app.post("/webhook", async (req, res) => {
   try {
     const body = req.body;
 
-    // 🔐 FLOW CIFRADO
     if (body.encrypted_flow_data) {
       console.log("🔐 Flow cifrado recibido");
 
-      const { data, aesKey, iv } = decryptFlowData(body);
+      try {
+        const { data, aesKey, iv } = decryptFlowData(body);
 
-      console.log("✅ DESCIFRADO:", data);
+        console.log("✅ DESCIFRADO:", data);
 
-      const response = {
-        version: "1.0",
-        data: {}
-      };
+        const response = {
+          version: "1.0",
+          data: {}
+        };
 
-      const encryptedResponse = encryptResponse(response, aesKey, iv);
+        const encryptedResponse = encryptResponse(response, aesKey, iv);
 
-      return res.status(200).json({
-        encrypted_response: encryptedResponse
-      });
-    }
+        return res.status(200).json({
+          encrypted_response: encryptedResponse
+        });
 
-    const entry = body?.entry?.[0]?.changes?.[0]?.value;
-    if (!entry) return res.sendStatus(200);
+      } catch (err) {
+        console.error("❌ ERROR DESCIFRANDO:", err);
 
-    const numero = entry?.messages?.[0]?.from;
-    const mensajeTexto = entry?.messages?.[0]?.text?.body;
-
-    if (mensajeTexto) {
-      const texto = mensajeTexto.trim().toLowerCase();
-
-      if (["xf", "taxi", "reserva"].includes(texto)) {
-        await enviarFlow(numero);
-        return res.sendStatus(200);
+        return res.status(200).json({
+          encrypted_response: ""
+        });
       }
     }
 
-    res.sendStatus(200);
+    return res.sendStatus(200);
+
   } catch (error) {
-    console.error("❌ ERROR:", error);
+    console.error("❌ ERROR GENERAL:", error);
     res.sendStatus(500);
   }
 });
