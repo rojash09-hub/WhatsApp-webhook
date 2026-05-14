@@ -12,7 +12,7 @@ const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
 const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
 
-// 🔑 PRIVATE KEY (ARREGLADA PARA RENDER)
+// 🔑 PRIVATE KEY (ARREGLADA)
 const PRIVATE_KEY = process.env.PRIVATE_KEY
   ? process.env.PRIVATE_KEY.replace(/\\n/g, "\n").replace(/\r/g, "")
   : null;
@@ -57,7 +57,7 @@ function decryptFlowData(body) {
     {
       key: PRIVATE_KEY,
       padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
-      oaepHash: "sha256" // 🔥 CLAVE
+      oaepHash: "sha256"
     },
     encryptedAesKey
   );
@@ -67,7 +67,21 @@ function decryptFlowData(body) {
   let decrypted = decipher.update(encryptedData);
   decrypted = Buffer.concat([decrypted, decipher.final()]);
 
-  return JSON.parse(decrypted.toString());
+  return {
+    data: JSON.parse(decrypted.toString()),
+    aesKey,
+    iv
+  };
+}
+
+// 🔐 CIFRAR RESPUESTA
+function encryptResponse(data, aesKey, iv) {
+  const cipher = crypto.createCipheriv("aes-256-cbc", aesKey, iv);
+
+  let encrypted = cipher.update(JSON.stringify(data));
+  encrypted = Buffer.concat([encrypted, cipher.final()]);
+
+  return encrypted.toString("base64");
 }
 
 // 📲 ENVIAR MENSAJE
@@ -137,13 +151,19 @@ app.post("/webhook", async (req, res) => {
     if (body.encrypted_flow_data) {
       console.log("🔐 Flow cifrado recibido");
 
-      const decrypted = decryptFlowData(body);
+      const { data, aesKey, iv } = decryptFlowData(body);
 
-      console.log("✅ DESCIFRADO:", decrypted);
+      console.log("✅ DESCIFRADO:", data);
 
-      return res.status(200).json({
+      const response = {
         version: "1.0",
         data: {}
+      };
+
+      const encryptedResponse = encryptResponse(response, aesKey, iv);
+
+      return res.status(200).json({
+        encrypted_response: encryptedResponse
       });
     }
 
