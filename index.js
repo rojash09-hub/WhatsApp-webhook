@@ -42,14 +42,10 @@ app.get("/webhook", (req, res) => {
     req.query["hub.mode"];
 
   const token =
-    req.query[
-      "hub.verify_token"
-    ];
+    req.query["hub.verify_token"];
 
   const challenge =
-    req.query[
-      "hub.challenge"
-    ];
+    req.query["hub.challenge"];
 
   if (
     mode === "subscribe" &&
@@ -156,16 +152,12 @@ function encryptResponse(
   iv
 ) {
 
-  const flippedIv =
-    Buffer
-      .from(iv)
-      .reverse();
-
+  // ✅ MISMO IV
   const cipher =
     crypto.createCipheriv(
       "aes-128-gcm",
       aesKey,
-      flippedIv
+      iv
     );
 
   const payload =
@@ -187,23 +179,14 @@ function encryptResponse(
   const authTag =
     cipher.getAuthTag();
 
-  let base64 =
-    Buffer.concat([
+  return Buffer
+    .concat([
       encrypted,
       authTag
-    ]).toString(
+    ])
+    .toString(
       "base64"
     );
-
-  while (
-    base64.length % 4 !== 0
-  ) {
-
-    base64 += "=";
-
-  }
-
-  return base64;
 
 }
 
@@ -251,7 +234,6 @@ app.post(
           iv
         );
 
-      // 👇 FIX FINAL
       return res
         .status(200)
         .type("json")
