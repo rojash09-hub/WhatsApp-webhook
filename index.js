@@ -24,8 +24,7 @@ const PHONE_NUMBER_ID =
 
 const PRIVATE_KEY =
   process.env.PRIVATE_KEY_ACCOUNT
-    ? process.env
-        .PRIVATE_KEY_ACCOUNT
+    ? process.env.PRIVATE_KEY_ACCOUNT
         .replace(/\\n/g, "\n")
         .replace(/\r/g, "")
     : null;
@@ -45,7 +44,7 @@ function fechaPeru() {
 
 }
 
-// 📅 FECHA ACTUAL PERÚ
+// 📅 FECHA PERÚ
 function obtenerFechaPeru() {
 
   return fechaPeru()
@@ -55,7 +54,7 @@ function obtenerFechaPeru() {
 
 }
 
-// ⏰ HORA ACTUAL PERÚ
+// ⏰ HORA PERÚ
 function obtenerHoraPeru() {
 
   return fechaPeru()
@@ -81,16 +80,13 @@ const upper = (text) =>
     ? text.toString().toUpperCase()
     : "";
 
-// ✅ CONFIGURACIÓN FLOWS
+// ✅ CONFIG
 const CONFIG = {
 
   EXALMAR: {
 
     title:
       "EXALMAR FLOTA",
-
-    flowId:
-      "1487962506700406",
 
     command:
       "xf",
@@ -105,9 +101,6 @@ const CONFIG = {
     title:
       "CENTINELA FLOTA",
 
-    flowId:
-      "1562186275266854",
-
     command:
       "cf",
 
@@ -121,9 +114,6 @@ const CONFIG = {
     title:
       "PLANTA CALLAO",
 
-    flowId:
-      "3257150361132563",
-
     command:
       "pc",
 
@@ -136,9 +126,6 @@ const CONFIG = {
 
     title:
       "GLOBAL",
-
-    flowId:
-      "2051713752436319",
 
     command:
       "global",
@@ -189,9 +176,7 @@ app.get("/webhook", (req, res) => {
 });
 
 // 🔓 DESCIFRAR FLOW
-function decryptFlowData(
-  body
-) {
+function decryptFlowData(body) {
 
   const encryptedAesKey =
     Buffer.from(
@@ -218,8 +203,7 @@ function decryptFlowData(
           PRIVATE_KEY,
 
         padding:
-          crypto.constants
-            .RSA_PKCS1_OAEP_PADDING,
+          crypto.constants.RSA_PKCS1_OAEP_PADDING,
 
         oaepHash:
           "sha256"
@@ -244,15 +228,11 @@ function decryptFlowData(
       iv
     );
 
-  decipher.setAuthTag(
-    authTag
-  );
+  decipher.setAuthTag(authTag);
 
   const decrypted =
     Buffer.concat([
-      decipher.update(
-        cipherText
-      ),
+      decipher.update(cipherText),
       decipher.final()
     ]);
 
@@ -260,9 +240,7 @@ function decryptFlowData(
 
     data:
       JSON.parse(
-        decrypted.toString(
-          "utf8"
-        )
+        decrypted.toString("utf8")
       ),
 
     aesKey,
@@ -312,17 +290,13 @@ function encryptResponse(
 
   const payload =
     Buffer.from(
-      JSON.stringify(
-        response
-      ),
+      JSON.stringify(response),
       "utf8"
     );
 
   const encrypted =
     Buffer.concat([
-      cipher.update(
-        payload
-      ),
+      cipher.update(payload),
       cipher.final()
     ]);
 
@@ -334,9 +308,7 @@ function encryptResponse(
       encrypted,
       authTag
     ])
-    .toString(
-      "base64"
-    );
+    .toString("base64");
 
 }
 
@@ -418,7 +390,6 @@ async function enviarFlow(
     await axios.post(
       `https://graph.facebook.com/v20.0/${PHONE_NUMBER_ID}/messages`,
       {
-
         messaging_product:
           "whatsapp",
 
@@ -513,6 +484,7 @@ async function guardarEnSheet(
 
     const auth =
       new google.auth.GoogleAuth({
+
         credentials:
           JSON.parse(
             process.env
@@ -522,6 +494,7 @@ async function guardarEnSheet(
         scopes: [
           "https://www.googleapis.com/auth/spreadsheets"
         ]
+
       });
 
     const sheets =
@@ -677,6 +650,7 @@ app.post(
 
     try {
 
+      // 🔐 FLOW ENCRYPTED
       if (
         req.body
           .encrypted_aes_key
@@ -687,9 +661,7 @@ app.post(
           aesKey,
           iv
         } =
-          decryptFlowData(
-            req.body
-          );
+          decryptFlowData(req.body);
 
         if (
           data.action ===
@@ -776,6 +748,7 @@ app.post(
           ?.messages?.[0]
           ?.text?.body;
 
+      // 📩 COMANDOS
       if (mensajeTexto) {
 
         const texto =
