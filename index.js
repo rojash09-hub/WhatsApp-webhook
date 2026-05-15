@@ -30,17 +30,7 @@ const PRIVATE_KEY =
         .replace(/\r/g, "")
     : null;
 
-console.log(
-  "PRIVATE_KEY:",
-  PRIVATE_KEY ? "OK" : "NULL"
-);
-
-console.log(
-  "PHONE_NUMBER_ID:",
-  PHONE_NUMBER_ID
-);
-
-// 🇵🇪 FECHA/HORA PERÚ
+// 🇵🇪 FECHA PERÚ
 function fechaPeru() {
 
   return new Date(
@@ -55,23 +45,92 @@ function fechaPeru() {
 
 }
 
-// 📊 SHEETS
-const SHEETS = {
-  EXALMAR:
-    "1LM9JMK8yySI9CVCe785bDdsi-j1fFaJPpvIE19zDkiw",
-
-  CLIENTE_2:
-    "SHEET_ID_2",
-
-  CLIENTE_3:
-    "SHEET_ID_3"
-};
-
 // 🔠 MAYÚSCULAS
 const upper = (text) =>
   text
     ? text.toString().toUpperCase()
     : "";
+
+// 📊 CONFIGURACIÓN
+const CONFIG = {
+
+  EXALMAR: {
+
+    flowId:
+      "1487962506700406",
+
+    command:
+      "xf",
+
+    title:
+      "EXALMAR FLOTA",
+
+    sheetId:
+      "1LM9JMK8yySI9CVCe785bDdsi-j1fFaJPpvIE19zDkiw",
+
+    range:
+      "Data!A:L"
+
+  },
+
+  CENTINELA: {
+
+    flowId:
+      "1562186275266854",
+
+    command:
+      "cf",
+
+    title:
+      "CENTINELA FLOTA",
+
+    sheetId:
+      "1z7C4HyHc3VIMxnGHWLbDTynXslutqP5gT-j_zMW1dIU",
+
+    range:
+      "Data!A:M"
+
+  },
+
+  PLANTA: {
+
+    flowId:
+      "3257150361132563",
+
+    command:
+      "pc",
+
+    title:
+      "PLANTA CALLAO",
+
+    sheetId:
+      "189ivlWlIESMcZ05_D12-5bpBIPPvLwStaRxSUfxZ2aI",
+
+    range:
+      "Data!A:L"
+
+  },
+
+  GLOBAL: {
+
+    flowId:
+      "2051713752436319",
+
+    command:
+      "global",
+
+    title:
+      "GLOBAL",
+
+    sheetId:
+      "1reGQpDdBpgtE0Wd4s2xM17x2dzzEIpV-DL2qEsvJgVc",
+
+    range:
+      "Data!A:L"
+
+  }
+
+};
 
 // ❤️ HEALTH
 app.get("/", (req, res) => {
@@ -84,7 +143,7 @@ app.get("/", (req, res) => {
 
 });
 
-// ✅ VERIFY WEBHOOK
+// ✅ VERIFY
 app.get("/webhook", (req, res) => {
 
   const mode =
@@ -101,10 +160,6 @@ app.get("/webhook", (req, res) => {
     token === VERIFY_TOKEN
   ) {
 
-    console.log(
-      "✅ Webhook verificado"
-    );
-
     return res
       .status(200)
       .send(challenge);
@@ -115,10 +170,8 @@ app.get("/webhook", (req, res) => {
 
 });
 
-// 🔓 DESCIFRAR FLOW
-function decryptFlowData(
-  body
-) {
+// 🔓 DESCIFRAR
+function decryptFlowData(body) {
 
   const encryptedAesKey =
     Buffer.from(
@@ -150,15 +203,12 @@ function decryptFlowData(
 
         oaepHash:
           "sha256"
-
       },
       encryptedAesKey
     );
 
   const authTag =
-    encryptedData.slice(
-      -16
-    );
+    encryptedData.slice(-16);
 
   const cipherText =
     encryptedData.slice(
@@ -201,7 +251,7 @@ function decryptFlowData(
 
 }
 
-// 🔁 INVERTIR IV
+// 🔁 IV
 function flipIv(iv) {
 
   const flipped =
@@ -222,7 +272,7 @@ function flipIv(iv) {
 
 }
 
-// 🔐 CIFRAR RESPUESTA
+// 🔐 CIFRAR
 function encryptResponse(
   response,
   aesKey,
@@ -263,13 +313,11 @@ function encryptResponse(
       encrypted,
       authTag
     ])
-    .toString(
-      "base64"
-    );
+    .toString("base64");
 
 }
 
-// 📲 ENVIAR MENSAJE
+// 📲 MENSAJE
 async function enviarMensaje(
   numero,
   mensaje
@@ -307,15 +355,10 @@ async function enviarMensaje(
       }
     );
 
-    console.log(
-      "✅ Mensaje enviado a",
-      numero
-    );
-
   } catch (error) {
 
     console.error(
-      "❌ Error enviando mensaje:",
+      "❌ Error mensaje:",
       error.response?.data || error
     );
 
@@ -323,9 +366,11 @@ async function enviarMensaje(
 
 }
 
-// 📲 ENVIAR FLOW
+// 📲 FLOW
 async function enviarFlow(
-  numero
+  numero,
+  flowId,
+  titulo
 ) {
 
   try {
@@ -350,7 +395,7 @@ async function enviarFlow(
           body: {
 
             text:
-              "🚖 EXALMAR FLOTA\nSolicita tu taxi aquí:"
+              `🚖 ${titulo}\nSolicita aquí:`
 
           },
 
@@ -365,10 +410,10 @@ async function enviarFlow(
                 "3",
 
               flow_id:
-                "1487962506700406",
+                flowId,
 
               flow_cta:
-                "Reservar Taxi"
+                "ABRIR"
 
             }
 
@@ -389,11 +434,6 @@ async function enviarFlow(
       }
     );
 
-    console.log(
-      "✅ Flow enviado a",
-      numero
-    );
-
   } catch (error) {
 
     console.error(
@@ -405,7 +445,7 @@ async function enviarFlow(
 
 }
 
-// 🔢 GENERAR CORRELATIVO
+// 🔢 CORRELATIVO
 async function generarCorrelativo(
   sheets,
   sheetId
@@ -432,12 +472,7 @@ async function generarCorrelativo(
 
     return 100 + rows.length;
 
-  } catch (error) {
-
-    console.error(
-      "❌ Error correlativo:",
-      error
-    );
+  } catch {
 
     return 101;
 
@@ -445,9 +480,9 @@ async function generarCorrelativo(
 
 }
 
-// 📊 GUARDAR SHEETS
+// 📊 GUARDAR
 async function guardarEnSheet(
-  cliente,
+  tipo,
   registroBase,
   extras
 ) {
@@ -471,49 +506,112 @@ async function guardarEnSheet(
       google.sheets({
         version:
           "v4",
-
         auth
       });
 
-    const sheetId =
-      SHEETS[cliente] ||
-      SHEETS["EXALMAR"];
+    const cfg =
+      CONFIG[tipo];
 
     const correlativo =
       await generarCorrelativo(
         sheets,
-        sheetId
+        cfg.sheetId
       );
 
-    const values = [
-      [
+    let values = [];
+
+    // EXALMAR
+    if (tipo === "EXALMAR") {
+
+      values = [[
+
         registroBase.titulo,
-
         correlativo,
-
         registroBase.fecha,
-
         registroBase.hora,
-
         registroBase.autoriza,
-
         registroBase.nombre,
-
         registroBase.inicio,
-
         registroBase.destino,
-
         "",
-
         "",
-
-        JSON.stringify(
-          extras
-        ),
-
+        registroBase.observaciones,
+        JSON.stringify(extras),
         registroBase.fecha_registro
-      ]
-    ];
+
+      ]];
+
+    }
+
+    // CENTINELA
+    if (tipo === "CENTINELA") {
+
+      values = [[
+
+        registroBase.titulo,
+        correlativo,
+        registroBase.fecha,
+        registroBase.hora,
+        registroBase.solicitante,
+        registroBase.tipo_unidad,
+        registroBase.usuario,
+        registroBase.inicio,
+        registroBase.destino,
+        "",
+        "",
+        registroBase.observaciones,
+        JSON.stringify(extras),
+        registroBase.fecha_registro
+
+      ]];
+
+    }
+
+    // PLANTA
+    if (tipo === "PLANTA") {
+
+      values = [[
+
+        registroBase.titulo,
+        correlativo,
+        registroBase.fecha,
+        registroBase.hora,
+        registroBase.solicitante,
+        registroBase.usuario,
+        registroBase.inicio,
+        registroBase.destino,
+        "",
+        "",
+        registroBase.observaciones,
+        JSON.stringify(extras),
+        registroBase.fecha_registro
+
+      ]];
+
+    }
+
+    // GLOBAL
+    if (tipo === "GLOBAL") {
+
+      values = [[
+
+        registroBase.titulo,
+        correlativo,
+        registroBase.empresa,
+        registroBase.fecha,
+        registroBase.hora,
+        registroBase.usuario,
+        registroBase.inicio,
+        registroBase.destino,
+        "",
+        "",
+        registroBase.observaciones,
+        JSON.stringify(extras),
+        registroBase.fecha_registro
+
+      ]];
+
+    }
 
     await sheets
       .spreadsheets
@@ -521,10 +619,10 @@ async function guardarEnSheet(
       .append({
 
         spreadsheetId:
-          sheetId,
+          cfg.sheetId,
 
         range:
-          "Data!A:L",
+          cfg.range,
 
         valueInputOption:
           "USER_ENTERED",
@@ -534,10 +632,6 @@ async function guardarEnSheet(
         }
 
       });
-
-    console.log(
-      `✅ Guardado en ${cliente}`
-    );
 
     return correlativo;
 
@@ -557,22 +651,15 @@ async function guardarEnSheet(
 // 🚀 WEBHOOK
 app.post(
   "/webhook",
-  async (
-    req,
-    res
-  ) => {
+  async (req, res) => {
 
     try {
 
-      // 🔐 FLOW ENCRYPTED
+      // 🔐 FLOW
       if (
         req.body
           .encrypted_aes_key
       ) {
-
-        console.log(
-          "🔐 Flow cifrado recibido"
-        );
 
         const {
           data,
@@ -583,31 +670,19 @@ app.post(
             req.body
           );
 
-        console.log(
-          "✅ DESCIFRADO:",
-          data
-        );
-
-        // 🏓 PING
         if (
           data.action ===
           "ping"
         ) {
 
-          const pingResponse = {
-
-            data: {
-
-              status:
-                "active"
-
-            }
-
-          };
-
-          const encryptedResponse =
+          const encrypted =
             encryptResponse(
-              pingResponse,
+              {
+                data: {
+                  status:
+                    "active"
+                }
+              },
               aesKey,
               iv
             );
@@ -618,25 +693,18 @@ app.post(
               "Content-Type",
               "text/plain"
             )
-            .send(
-              encryptedResponse
-            );
+            .send(encrypted);
 
         }
 
-        // ✅ RESPONSE FLOW
-        const response = {
-
-          screen:
-            "SUCCESS",
-
-          data: {}
-
-        };
-
-        const encryptedResponse =
+        const encrypted =
           encryptResponse(
-            response,
+            {
+              screen:
+                "SUCCESS",
+
+              data: {}
+            },
             aesKey,
             iv
           );
@@ -647,13 +715,11 @@ app.post(
             "Content-Type",
             "text/plain"
           )
-          .send(
-            encryptedResponse
-          );
+          .send(encrypted);
 
       }
 
-      // 📲 WHATSAPP NORMAL
+      // 📲 NORMAL
       const entry =
         req.body
           ?.entry?.[0]
@@ -666,7 +732,7 @@ app.post(
 
       }
 
-      const numeroRemitente =
+      const numero =
         entry
           ?.messages?.[0]
           ?.from;
@@ -684,72 +750,71 @@ app.post(
             .trim()
             .toLowerCase();
 
-        // XF SIMPLE
-        if (
-          [
-            "xf",
-            "taxi",
-            "reserva"
-          ].includes(texto)
-        ) {
+        // ENVÍO SIMPLE
+        for (const tipo in CONFIG) {
 
-          await enviarFlow(
-            numeroRemitente
-          );
+          const cfg =
+            CONFIG[tipo];
 
-          return res.sendStatus(200);
+          if (
+            texto ===
+            cfg.command
+          ) {
 
-        }
-
-        // XF + NÚMERO
-        if (
-          numeroRemitente ===
-          "51961507276" &&
-          texto.startsWith(
-            "xf "
-          )
-        ) {
-
-          const partes =
-            texto.split(" ");
-
-          let numeroDestino =
-            partes[1];
-
-          if (!numeroDestino) {
+            await enviarFlow(
+              numero,
+              cfg.flowId,
+              cfg.title
+            );
 
             return res.sendStatus(200);
 
           }
 
+          // ADMIN
           if (
-            !numeroDestino.startsWith(
-              "51"
+            numero ===
+            "51961507276" &&
+            texto.startsWith(
+              cfg.command + " "
             )
           ) {
 
-            numeroDestino =
-              "51" +
-              numeroDestino;
+            let numeroDestino =
+              texto.split(" ")[1];
+
+            if (
+              !numeroDestino.startsWith(
+                "51"
+              )
+            ) {
+
+              numeroDestino =
+                "51" +
+                numeroDestino;
+
+            }
+
+            await enviarFlow(
+              numeroDestino,
+              cfg.flowId,
+              cfg.title
+            );
+
+            await enviarMensaje(
+              numero,
+              `✅ FLOW ENVIADO A ${numeroDestino}`
+            );
+
+            return res.sendStatus(200);
 
           }
-
-          await enviarFlow(
-            numeroDestino
-          );
-
-          await enviarMensaje(
-            numeroRemitente,
-            `✅ Formulario enviado a ${numeroDestino}`
-          );
-
-          return res.sendStatus(200);
 
         }
 
       }
 
-      // 📥 FORMULARIO
+      // 📥 FORM
       let form =
         entry
           ?.messages?.[0]
@@ -763,9 +828,9 @@ app.post(
 
       }
 
-      // 🔥 STRING → OBJETO
       if (
-        typeof form === "string"
+        typeof form ===
+        "string"
       ) {
 
         form =
@@ -773,37 +838,14 @@ app.post(
 
       }
 
-      console.log(
-        "📥 FORM:",
-        form
-      );
-
-      const cliente =
-        form.cliente ||
+      const tipo =
+        form.tipo_flujo ||
         "EXALMAR";
 
       const registroBase = {
 
         titulo:
-          "EXALMAR FLOTA",
-
-        nombre:
-          "",
-
-        inicio:
-          "",
-
-        destino:
-          "",
-
-        fecha:
-          "",
-
-        hora:
-          "",
-
-        autoriza:
-          "",
+          CONFIG[tipo].title,
 
         fecha_registro:
           fechaPeru()
@@ -837,7 +879,7 @@ app.post(
         value =
           upper(value);
 
-        // 📅 HOY
+        // 📅
         if (
           key === "fecha" &&
           value === "HOY"
@@ -851,7 +893,7 @@ app.post(
 
         }
 
-        // ⏰ AHORA
+        // ⏰
         if (
           key === "hora" &&
           (
@@ -878,99 +920,38 @@ app.post(
 
         }
 
-        if (
-          key in
-          registroBase
-        ) {
+        registroBase[
+          key
+        ] = value;
 
-          registroBase[
-            key
-          ] = value;
-
-        } else {
-
-          extras[key] =
-            value;
-
-        }
+        extras[key] =
+          value;
 
       }
 
-      // 📊 GUARDAR
+      delete extras.flow_token;
+
       const correlativo =
         await guardarEnSheet(
-          cliente,
+          tipo,
           registroBase,
           extras
         );
 
       // 📩 MENSAJE
       let mensaje =
-        `🚖 EXALMAR FLOTA - NUEVA RESERVA\n\n`;
+        `🚖 ${registroBase.titulo}\n\n`;
 
       mensaje +=
         `🆔 CODIGO: ${correlativo}\n\n`;
 
-      if (
-        registroBase.nombre
-      ) {
-
-        mensaje +=
-          `👤 NOMBRE: ${registroBase.nombre}\n`;
-
-      }
-
-      if (
-        registroBase.inicio
-      ) {
-
-        mensaje +=
-          `📍 INICIO: ${registroBase.inicio}\n`;
-
-      }
-
-      if (
-        registroBase.destino
-      ) {
-
-        mensaje +=
-          `🏁 DESTINO: ${registroBase.destino}\n`;
-
-      }
-
-      if (
-        registroBase.fecha
-      ) {
-
-        mensaje +=
-          `📅 FECHA: ${registroBase.fecha}\n`;
-
-      }
-
-      if (
-        registroBase.hora
-      ) {
-
-        mensaje +=
-          `⏰ HORA: ${registroBase.hora}\n`;
-
-      }
-
-      if (
-        registroBase.autoriza
-      ) {
-
-        mensaje +=
-          `✅ AUTORIZA: ${registroBase.autoriza}\n`;
-
-      }
-
-      for (
-        const key in extras
-      ) {
+      for (const key in registroBase) {
 
         if (
-          key === "flow_token"
+          [
+            "titulo",
+            "fecha_registro"
+          ].includes(key)
         ) {
 
           continue;
@@ -978,14 +959,13 @@ app.post(
         }
 
         mensaje +=
-          `🔹 ${key.toUpperCase()}: ${extras[key]}\n`;
+          `🔹 ${key.toUpperCase()}: ${registroBase[key]}\n`;
 
       }
 
       mensaje +=
         `\n📌 REGISTRO: ${registroBase.fecha_registro}`;
 
-      // 📲 ENVÍOS
       await enviarMensaje(
         "51961507276",
         mensaje
@@ -996,12 +976,10 @@ app.post(
         mensaje
       );
 
-      if (
-        numeroRemitente
-      ) {
+      if (numero) {
 
         await enviarMensaje(
-          numeroRemitente,
+          numero,
           mensaje
         );
 
@@ -1012,7 +990,7 @@ app.post(
     } catch (error) {
 
       console.error(
-        "❌ ERROR GENERAL:",
+        "❌ ERROR:",
         error
       );
 
@@ -1033,7 +1011,7 @@ app.listen(
   () => {
 
     console.log(
-      "🚀 Servidor corriendo en puerto",
+      "🚀 Servidor:",
       PORT
     );
 
