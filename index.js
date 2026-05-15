@@ -439,55 +439,57 @@ async function enviarFlow(
 
     // ✅ ENVIAR TEMPLATE
     await axios.post(
-      `https://graph.facebook.com/v20.0/${PHONE_NUMBER_ID}/messages`,
-      {
-        messaging_product:
-          "whatsapp",
+  `https://graph.facebook.com/v20.0/${PHONE_NUMBER_ID}/messages`,
+  {
+    messaging_product:
+      "whatsapp",
 
-        to:
-          numero,
+    to:
+      numero,
 
-        type:
-          "template",
+    type:
+      "template",
 
-        template: {
+    template: {
 
-          name:
-            templateName,
+      name:
+        templateName,
 
-          language: {
+      language: {
 
-            code:
-             "es_PE"
-
-          }
-
-        }
+        code:
+          "es_PE"
 
       },
-      {
-        headers: {
 
-          Authorization:
-            `Bearer ${WHATSAPP_TOKEN}`,
+      components: [
+        {
+          type:
+            "button",
 
-          "Content-Type":
-            "application/json"
+          sub_type:
+            "flow",
 
+          index:
+            "0"
         }
-      }
-    );
+      ]
 
-  } catch (error) {
+    }
 
-    console.error(
-      "❌ ERROR FLOW:",
-      error.response?.data || error
-    );
+  },
+  {
+    headers: {
 
+      Authorization:
+        `Bearer ${WHATSAPP_TOKEN}`,
+
+      "Content-Type":
+        "application/json"
+
+    }
   }
-
-}
+);
 // 🔢 CORRELATIVO
 async function generarCorrelativo(
   sheets,
