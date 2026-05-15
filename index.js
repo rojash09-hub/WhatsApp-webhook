@@ -1,3 +1,6 @@
+# index.js completo corregido
+
+```js
 const express = require("express");
 const bodyParser = require("body-parser");
 const crypto = require("crypto");
@@ -505,8 +508,7 @@ async function guardarEnSheet(
 
     const sheets =
       google.sheets({
-        version:
-          "v4",
+        version: "v4",
         auth
       });
 
@@ -519,29 +521,60 @@ async function guardarEnSheet(
         sheetId
       );
 
-    const values = [
-      [
-        registroBase.titulo || "",
-        correlativo || "",
-        registroBase.fecha || "",
-        registroBase.hora || "",
-        registroBase.solicitante ||
-        registroBase.autoriza ||
-        "",
-        registroBase.empresa || "",
-        registroBase.tipo_unidad || "",
-        registroBase.usuario ||
-        registroBase.nombre ||
-        "",
-        registroBase.inicio || "",
-        registroBase.destino || "",
-        "",
-        "",
-        registroBase.observaciones || "",
-        JSON.stringify(extras),
-        registroBase.fecha_registro || ""
-      ]
-    ];
+    let values = [];
+
+    // ✅ SOLO CENTINELA
+    if (tipo === "CENTINELA") {
+
+      values = [
+        [
+          registroBase.titulo || "",
+          correlativo || "",
+          registroBase.fecha || "",
+          registroBase.hora || "",
+          registroBase.solicitante || "",
+          registroBase.tipo_unidad || "",
+          registroBase.usuario ||
+          registroBase.nombre ||
+          "",
+          registroBase.inicio || "",
+          registroBase.destino || "",
+          "",
+          "",
+          registroBase.observaciones || "",
+          JSON.stringify(extras),
+          registroBase.fecha_registro || ""
+        ]
+      ];
+
+    } else {
+
+      // ✅ OTROS FLOWS
+      values = [
+        [
+          registroBase.titulo || "",
+          correlativo || "",
+          registroBase.fecha || "",
+          registroBase.hora || "",
+          registroBase.solicitante ||
+          registroBase.autoriza ||
+          "",
+          registroBase.empresa || "",
+          registroBase.tipo_unidad || "",
+          registroBase.usuario ||
+          registroBase.nombre ||
+          "",
+          registroBase.inicio || "",
+          registroBase.destino || "",
+          "",
+          "",
+          registroBase.observaciones || "",
+          JSON.stringify(extras),
+          registroBase.fecha_registro || ""
+        ]
+      ];
+
+    }
 
     await sheets
       .spreadsheets
@@ -552,7 +585,9 @@ async function guardarEnSheet(
           sheetId,
 
         range:
-          "Data!A:O",
+          tipo === "CENTINELA"
+            ? "Data!A:N"
+            : "Data!A:O",
 
         valueInputOption:
           "USER_ENTERED",
@@ -588,7 +623,6 @@ app.post(
 
     try {
 
-      // 🔐 FLOW ENCRYPTED
       if (
         req.body
           .encrypted_aes_key
@@ -701,7 +735,6 @@ app.post(
           const cfg =
             CONFIG[key];
 
-          // SIMPLE
           if (
             texto ===
             cfg.command
@@ -716,7 +749,6 @@ app.post(
 
           }
 
-          // ADMIN
           if (
             numeroRemitente ===
             "51961507276" &&
@@ -1000,3 +1032,4 @@ app.listen(
 
   }
 );
+```
