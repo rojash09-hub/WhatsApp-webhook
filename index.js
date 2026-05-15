@@ -24,7 +24,8 @@ const PHONE_NUMBER_ID =
 
 const PRIVATE_KEY =
   process.env.PRIVATE_KEY_ACCOUNT
-    ? process.env.PRIVATE_KEY_ACCOUNT
+    ? process.env
+        .PRIVATE_KEY_ACCOUNT
         .replace(/\\n/g, "\n")
         .replace(/\r/g, "")
     : null;
@@ -44,7 +45,7 @@ function fechaPeru() {
 
 }
 
-// 📅 FECHA PERÚ
+// 📅 FECHA ACTUAL PERÚ
 function obtenerFechaPeru() {
 
   return fechaPeru()
@@ -54,7 +55,7 @@ function obtenerFechaPeru() {
 
 }
 
-// ⏰ HORA PERÚ
+// ⏰ HORA ACTUAL PERÚ
 function obtenerHoraPeru() {
 
   return fechaPeru()
@@ -80,13 +81,16 @@ const upper = (text) =>
     ? text.toString().toUpperCase()
     : "";
 
-// ✅ CONFIG
+// ✅ CONFIGURACIÓN FLOWS
 const CONFIG = {
 
   EXALMAR: {
 
     title:
       "EXALMAR FLOTA",
+
+    flowId:
+      "1487962506700406",
 
     command:
       "xf",
@@ -101,6 +105,9 @@ const CONFIG = {
     title:
       "CENTINELA FLOTA",
 
+    flowId:
+      "1562186275266854",
+
     command:
       "cf",
 
@@ -114,6 +121,9 @@ const CONFIG = {
     title:
       "PLANTA CALLAO",
 
+    flowId:
+      "3257150361132563",
+
     command:
       "pc",
 
@@ -126,6 +136,9 @@ const CONFIG = {
 
     title:
       "GLOBAL",
+
+    flowId:
+      "2051713752436319",
 
     command:
       "global",
@@ -176,7 +189,9 @@ app.get("/webhook", (req, res) => {
 });
 
 // 🔓 DESCIFRAR FLOW
-function decryptFlowData(body) {
+function decryptFlowData(
+  body
+) {
 
   const encryptedAesKey =
     Buffer.from(
@@ -203,7 +218,8 @@ function decryptFlowData(body) {
           PRIVATE_KEY,
 
         padding:
-          crypto.constants.RSA_PKCS1_OAEP_PADDING,
+          crypto.constants
+            .RSA_PKCS1_OAEP_PADDING,
 
         oaepHash:
           "sha256"
@@ -228,11 +244,15 @@ function decryptFlowData(body) {
       iv
     );
 
-  decipher.setAuthTag(authTag);
+  decipher.setAuthTag(
+    authTag
+  );
 
   const decrypted =
     Buffer.concat([
-      decipher.update(cipherText),
+      decipher.update(
+        cipherText
+      ),
       decipher.final()
     ]);
 
@@ -240,7 +260,9 @@ function decryptFlowData(body) {
 
     data:
       JSON.parse(
-        decrypted.toString("utf8")
+        decrypted.toString(
+          "utf8"
+        )
       ),
 
     aesKey,
@@ -290,13 +312,17 @@ function encryptResponse(
 
   const payload =
     Buffer.from(
-      JSON.stringify(response),
+      JSON.stringify(
+        response
+      ),
       "utf8"
     );
 
   const encrypted =
     Buffer.concat([
-      cipher.update(payload),
+      cipher.update(
+        payload
+      ),
       cipher.final()
     ]);
 
@@ -308,56 +334,9 @@ function encryptResponse(
       encrypted,
       authTag
     ])
-    .toString("base64");
-
-}
-
-// 📲 ENVIAR MENSAJE
-async function enviarMensaje(
-  numero,
-  mensaje
-) {
-
-  try {
-
-    await axios.post(
-      `https://graph.facebook.com/v20.0/${PHONE_NUMBER_ID}/messages`,
-      {
-        messaging_product:
-          "whatsapp",
-
-        to:
-          numero,
-
-        type:
-          "text",
-
-        text: {
-          body:
-            mensaje
-        }
-      },
-      {
-        headers: {
-
-          Authorization:
-            `Bearer ${WHATSAPP_TOKEN}`,
-
-          "Content-Type":
-            "application/json"
-
-        }
-      }
+    .toString(
+      "base64"
     );
-
-  } catch (error) {
-
-    console.error(
-      "❌ ERROR MENSAJE:",
-      error.response?.data || error
-    );
-
-  }
 
 }
 
@@ -369,27 +348,51 @@ async function enviarFlow(
 
   try {
 
+    const cfg =
+      CONFIG[tipo];
+
+    if (!cfg) {
+
+      return;
+
+    }
+
+    // ✅ TEMPLATE SEGÚN EMPRESA
     let templateName = "";
 
     if (tipo === "EXALMAR") {
-      templateName = "exal_flota";
+
+      templateName =
+        "exal_flota";
+
     }
 
     else if (tipo === "CENTINELA") {
-      templateName = "centinela_flota";
+
+      templateName =
+        "centinela_flota";
+
     }
 
     else if (tipo === "PLANTA_CALLAO") {
-      templateName = "planta_callao";
+
+      templateName =
+        "planta_callao";
+
     }
 
     else if (tipo === "GLOBAL") {
-      templateName = "global";
+
+      templateName =
+        "global";
+
     }
 
+    // ✅ ENVIAR TEMPLATE FLOW
     await axios.post(
       `https://graph.facebook.com/v20.0/${PHONE_NUMBER_ID}/messages`,
       {
+
         messaging_product:
           "whatsapp",
 
@@ -409,7 +412,34 @@ async function enviarFlow(
             code:
               "es_PE"
 
-          }
+          },
+
+          components: [
+            {
+
+              type:
+                "button",
+
+              sub_type:
+                "quick_reply",
+
+              index:
+                "0",
+
+              parameters: [
+                {
+
+                  type:
+                    "payload",
+
+                  payload:
+                    "FLOW"
+
+                }
+              ]
+
+            }
+          ]
 
         }
 
@@ -427,6 +457,11 @@ async function enviarFlow(
       }
     );
 
+    console.log(
+      "✅ FLOW ENVIADO:",
+      templateName
+    );
+
   } catch (error) {
 
     console.error(
@@ -437,7 +472,6 @@ async function enviarFlow(
   }
 
 }
-
 // 🔢 CORRELATIVO
 async function generarCorrelativo(
   sheets,
@@ -484,7 +518,6 @@ async function guardarEnSheet(
 
     const auth =
       new google.auth.GoogleAuth({
-
         credentials:
           JSON.parse(
             process.env
@@ -494,7 +527,6 @@ async function guardarEnSheet(
         scopes: [
           "https://www.googleapis.com/auth/spreadsheets"
         ]
-
       });
 
     const sheets =
@@ -516,90 +548,102 @@ async function guardarEnSheet(
     let values = [];
     let range = "";
 
+    // ✅ EXALMAR
     if (tipo === "EXALMAR") {
 
-      values = [[
-        registroBase.titulo || "",
-        correlativo || "",
-        registroBase.fecha || "",
-        registroBase.hora || "",
-        registroBase.autoriza || "",
-        registroBase.nombre || "",
-        registroBase.inicio || "",
-        registroBase.destino || "",
-        "",
-        "",
-        registroBase.observaciones || "",
-        JSON.stringify(extras),
-        registroBase.fecha_registro || ""
-      ]];
+      values = [
+        [
+          registroBase.titulo || "",
+          correlativo || "",
+          registroBase.fecha || "",
+          registroBase.hora || "",
+          registroBase.autoriza || "",
+          registroBase.nombre || "",
+          registroBase.inicio || "",
+          registroBase.destino || "",
+          "",
+          "",
+          registroBase.observaciones || "",
+          JSON.stringify(extras),
+          registroBase.fecha_registro || ""
+        ]
+      ];
 
       range = "Data!A:M";
 
     }
 
+    // ✅ CENTINELA
     else if (tipo === "CENTINELA") {
 
-      values = [[
-        registroBase.titulo || "",
-        correlativo || "",
-        registroBase.fecha || "",
-        registroBase.hora || "",
-        registroBase.solicitante || "",
-        registroBase.tipo_unidad || "",
-        registroBase.usuario || "",
-        registroBase.inicio || "",
-        registroBase.destino || "",
-        "",
-        "",
-        registroBase.observaciones || "",
-        JSON.stringify(extras),
-        registroBase.fecha_registro || ""
-      ]];
+      values = [
+        [
+          registroBase.titulo || "",
+          correlativo || "",
+          registroBase.fecha || "",
+          registroBase.hora || "",
+          registroBase.solicitante || "",
+          registroBase.tipo_unidad || "",
+          registroBase.usuario || "",
+          registroBase.inicio || "",
+          registroBase.destino || "",
+          "",
+          "",
+          registroBase.observaciones || "",
+          JSON.stringify(extras),
+          registroBase.fecha_registro || ""
+        ]
+      ];
 
       range = "Data!A:N";
 
     }
 
+    // ✅ GLOBAL
     else if (tipo === "GLOBAL") {
 
-      values = [[
-        registroBase.titulo || "",
-        correlativo || "",
-        registroBase.empresa || "",
-        registroBase.fecha || "",
-        registroBase.hora || "",
-        registroBase.usuario || "",
-        registroBase.inicio || "",
-        registroBase.destino || "",
-        "",
-        "",
-        registroBase.observaciones || "",
-        JSON.stringify(extras),
-        registroBase.fecha_registro || ""
-      ]];
+      values = [
+        [
+          registroBase.titulo || "",
+          correlativo || "",
+          registroBase.empresa || "",
+          registroBase.fecha || "",
+          registroBase.hora || "",
+          registroBase.usuario || "",
+          registroBase.inicio || "",
+          registroBase.destino || "",
+          "",
+          "",
+          registroBase.observaciones || "",
+          JSON.stringify(extras),
+          registroBase.fecha_registro || ""
+        ]
+      ];
 
       range = "Data!A:M";
 
     }
 
+    // ✅ PLANTA CALLAO
     else if (tipo === "PLANTA_CALLAO") {
 
-      values = [[
-        registroBase.titulo || "",
-        correlativo || "",
-        registroBase.fecha || "",
-        registroBase.hora || "",
-        registroBase.solicitante || "",
-        registroBase.usuario || "",
-        registroBase.inicio || "",
-        registroBase.destino || "",
-        "",
-        "",
-        registroBase.observaciones || "",
-        JSON.stringify(extras),
-        registroBase.fecha_registro || ""
-      ]];
+      values = [
+        [
+          registroBase.titulo || "",
+          correlativo || "",
+          registroBase.fecha || "",
+          registroBase.hora || "",
+          registroBase.solicitante || "",
+          registroBase.usuario || "",
+          registroBase.inicio || "",
+          registroBase.destino || "",
+          "",
+          "",
+          registroBase.observaciones || "",
+          JSON.stringify(extras),
+          registroBase.fecha_registro || ""
+        ]
+      ];
 
       range = "Data!A:M";
 
@@ -661,7 +705,9 @@ app.post(
           aesKey,
           iv
         } =
-          decryptFlowData(req.body);
+          decryptFlowData(
+            req.body
+          );
 
         if (
           data.action ===
@@ -775,7 +821,249 @@ app.post(
 
           }
 
+          if (
+            numeroRemitente ===
+            "51961507276" &&
+            texto.startsWith(
+              cfg.command + " "
+            )
+          ) {
+
+            const partes =
+              texto.split(" ");
+
+            let numeroDestino =
+              partes[1];
+
+            if (
+              !numeroDestino.startsWith(
+                "51"
+              )
+            ) {
+
+              numeroDestino =
+                "51" +
+                numeroDestino;
+
+            }
+
+            await enviarFlow(
+              numeroDestino,
+              key
+            );
+
+            await enviarMensaje(
+              numeroRemitente,
+              `✅ FORMULARIO ENVIADO A ${numeroDestino}`
+            );
+
+            return res.sendStatus(200);
+
+          }
+
         }
+
+      }
+
+      // 🔥 FORMULARIO
+      let form =
+        entry
+          ?.messages?.[0]
+          ?.interactive
+          ?.nfm_reply
+          ?.response_json;
+
+      if (!form) {
+
+        return res.sendStatus(200);
+
+      }
+
+      if (
+        typeof form === "string"
+      ) {
+
+        form =
+          JSON.parse(form);
+
+      }
+
+      const tipo =
+        form.tipo_flujo ||
+        "EXALMAR";
+
+      const cfg =
+        CONFIG[tipo];
+
+      if (!cfg) {
+
+        return res.sendStatus(200);
+
+      }
+
+      const registroBase = {
+
+        titulo:
+          cfg.title,
+
+        fecha_registro:
+          fechaPeru()
+            .toLocaleString(
+              "es-PE"
+            )
+
+      };
+
+      const extras = {};
+
+      for (const key in form) {
+
+        if (
+          key === "flow_token" ||
+          key === "tipo_flujo"
+        ) {
+
+          continue;
+
+        }
+
+        let value =
+          form[key];
+
+        if (
+          value === "OTROS" &&
+          form[
+            `${key}_otro`
+          ]
+        ) {
+
+          value =
+            form[
+              `${key}_otro`
+            ];
+
+        }
+
+        value =
+          upper(value);
+
+        // ✅ FECHA AUTOMÁTICA
+        if (
+          key === "fecha" &&
+          (
+            value === "HOY" ||
+            value === "AHORA"
+          )
+        ) {
+
+          value =
+            obtenerFechaPeru();
+
+        }
+
+        // ✅ HORA AUTOMÁTICA
+        if (
+          key === "hora" &&
+          (
+            value === "AHORA" ||
+            value === "AHORA MISMO"
+          )
+        ) {
+
+          value =
+            obtenerHoraPeru();
+
+        }
+
+        registroBase[key] =
+          value;
+
+        extras[key] =
+          value;
+
+      }
+
+      delete extras.flow_token;
+      delete extras.tipo_flujo;
+
+      const correlativo =
+        await guardarEnSheet(
+          tipo,
+          registroBase,
+          extras
+        );
+
+      let mensaje =
+        `🚖 ${registroBase.titulo}\n\n`;
+
+      mensaje +=
+        `🆔 CODIGO: ${correlativo}\n\n`;
+
+      if (registroBase.empresa) {
+        mensaje += `🏢 EMPRESA: ${registroBase.empresa}\n`;
+      }
+
+      if (registroBase.solicitante) {
+        mensaje += `👤 SOLICITANTE: ${registroBase.solicitante}\n`;
+      }
+
+      if (registroBase.autoriza) {
+        mensaje += `👤 AUTORIZA: ${registroBase.autoriza}\n`;
+      }
+
+      if (registroBase.tipo_unidad) {
+        mensaje += `🚘 TIPO UNIDAD: ${registroBase.tipo_unidad}\n`;
+      }
+
+      if (registroBase.usuario) {
+        mensaje += `🙍 USUARIO: ${registroBase.usuario}\n`;
+      }
+
+      if (registroBase.nombre) {
+        mensaje += `🙍 NOMBRE: ${registroBase.nombre}\n`;
+      }
+
+      if (registroBase.inicio) {
+        mensaje += `📍 INICIO: ${registroBase.inicio}\n`;
+      }
+
+      if (registroBase.destino) {
+        mensaje += `🏁 DESTINO: ${registroBase.destino}\n`;
+      }
+
+      if (registroBase.fecha) {
+        mensaje += `📅 FECHA: ${registroBase.fecha}\n`;
+      }
+
+      if (registroBase.hora) {
+        mensaje += `⏰ HORA: ${registroBase.hora}\n`;
+      }
+
+      if (registroBase.observaciones) {
+        mensaje += `📝 OBSERVACIONES: ${registroBase.observaciones}\n`;
+      }
+
+      mensaje +=
+        `\n📌 REGISTRO: ${registroBase.fecha_registro}`;
+
+      await enviarMensaje(
+        "51961507276",
+        mensaje
+      );
+
+      await enviarMensaje(
+        "51986767350",
+        mensaje
+      );
+
+      if (
+        numeroRemitente
+      ) {
+
+        await enviarMensaje(
+          numeroRemitente,
+          mensaje
+        );
 
       }
 
