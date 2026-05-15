@@ -12,7 +12,10 @@ app.use(
   })
 );
 
+// ======================================================
 // 🔐 VARIABLES
+// ======================================================
+
 const VERIFY_TOKEN =
   process.env.VERIFY_TOKEN;
 
@@ -29,7 +32,10 @@ const PRIVATE_KEY =
         .replace(/\r/g, "")
     : null;
 
-// 📊 GOOGLE SHEETS
+// ======================================================
+// 📊 CONFIGURACIÓN FLOWS
+// ======================================================
+
 const CONFIG = {
 
   EXALMAR: {
@@ -86,7 +92,10 @@ const CONFIG = {
 
 };
 
-// 🇵🇪 FECHA/HORA PERÚ
+// ======================================================
+// 🇵🇪 FECHA PERÚ
+// ======================================================
+
 function fechaPeru() {
 
   return new Date(
@@ -101,7 +110,10 @@ function fechaPeru() {
 
 }
 
+// ======================================================
 // 🔠 MAYÚSCULAS
+// ======================================================
+
 function upper(text) {
 
   return text
@@ -110,7 +122,10 @@ function upper(text) {
 
 }
 
+// ======================================================
 // ❤️ HEALTH
+// ======================================================
+
 app.get("/", (req, res) => {
 
   return res.status(200).json({
@@ -119,7 +134,10 @@ app.get("/", (req, res) => {
 
 });
 
-// ✅ VERIFY
+// ======================================================
+// ✅ VERIFY WEBHOOK
+// ======================================================
+
 app.get("/webhook", (req, res) => {
 
   const mode =
@@ -146,7 +164,10 @@ app.get("/webhook", (req, res) => {
 
 });
 
+// ======================================================
 // 🔓 DESCIFRAR FLOW
+// ======================================================
+
 function decryptFlowData(body) {
 
   const encryptedAesKey =
@@ -187,7 +208,10 @@ function decryptFlowData(body) {
     encryptedData.slice(-16);
 
   const cipherText =
-    encryptedData.slice(0, -16);
+    encryptedData.slice(
+      0,
+      -16
+    );
 
   const decipher =
     crypto.createDecipheriv(
@@ -220,7 +244,10 @@ function decryptFlowData(body) {
 
 }
 
+// ======================================================
 // 🔁 FLIP IV
+// ======================================================
+
 function flipIv(iv) {
 
   const flipped =
@@ -241,7 +268,10 @@ function flipIv(iv) {
 
 }
 
-// 🔐 ENCRYPT
+// ======================================================
+// 🔐 ENCRYPT RESPONSE
+// ======================================================
+
 function encryptResponse(
   response,
   aesKey,
@@ -282,7 +312,10 @@ function encryptResponse(
 
 }
 
+// ======================================================
 // 📲 ENVIAR MENSAJE
+// ======================================================
+
 async function enviarMensaje(
   numero,
   mensaje
@@ -331,7 +364,10 @@ async function enviarMensaje(
 
 }
 
+// ======================================================
 // 📲 ENVIAR FLOW
+// ======================================================
+
 async function enviarFlow(
   numero,
   flowId
@@ -414,7 +450,10 @@ async function enviarFlow(
 
 }
 
+// ======================================================
 // 🔢 CORRELATIVO
+// ======================================================
+
 async function generarCorrelativo(
   sheets,
   spreadsheetId
@@ -453,7 +492,10 @@ async function generarCorrelativo(
 
 }
 
+// ======================================================
 // 📊 GUARDAR SHEET
+// ======================================================
+
 async function guardarEnSheet(
   tipo,
   registroBase,
@@ -583,7 +625,10 @@ async function guardarEnSheet(
 
 }
 
+// ======================================================
 // 🚀 WEBHOOK
+// ======================================================
+
 app.post(
   "/webhook",
   async (
@@ -671,7 +716,10 @@ app.post(
 
       }
 
+      // ======================================================
       // 📲 WHATSAPP
+      // ======================================================
+
       const entry =
         req.body
           ?.entry?.[0]
@@ -689,7 +737,10 @@ app.post(
           ?.messages?.[0]
           ?.from;
 
+      // ======================================================
       // 📩 TEXTO
+      // ======================================================
+
       const mensajeTexto =
         entry
           ?.messages?.[0]
@@ -752,7 +803,10 @@ app.post(
 
       }
 
+      // ======================================================
       // 📥 FORM
+      // ======================================================
+
       let form =
         entry
           ?.messages?.[0]
@@ -781,63 +835,13 @@ app.post(
         form
       );
 
-      // 🔥 TIPO
-      let tipo =
+      // ======================================================
+      // 🔥 TIPO FLOW
+      // ======================================================
+
+      const tipo =
+        form.tipo_flujo ||
         "EXALMAR";
-
-      if (
-        form.tipo_flujo
-      ) {
-
-        tipo =
-          form.tipo_flujo;
-
-      }
-
-      // FALLBACK POR FLOW TOKEN
-      if (
-        form.flow_token
-      ) {
-
-        const ft =
-          form.flow_token
-            .toString()
-            .toUpperCase();
-
-        if (
-          ft.includes(
-            "CENTINELA"
-          )
-        ) {
-
-          tipo =
-            "CENTINELA";
-
-        }
-
-        if (
-          ft.includes(
-            "PLANTA"
-          )
-        ) {
-
-          tipo =
-            "PLANTA_CALLAO";
-
-        }
-
-        if (
-          ft.includes(
-            "GLOBAL"
-          )
-        ) {
-
-          tipo =
-            "GLOBAL";
-
-        }
-
-      }
 
       console.log(
         "✅ FLOW:",
@@ -849,11 +853,19 @@ app.post(
 
       if (!cfg) {
 
+        console.log(
+          "❌ CONFIG NO EXISTE:",
+          tipo
+        );
+
         return res.sendStatus(200);
 
       }
 
-      // BASE
+      // ======================================================
+      // 🔥 BASE
+      // ======================================================
+
       const registroBase = {
 
         titulo:
@@ -869,7 +881,10 @@ app.post(
 
       const extras = {};
 
-      // 🔥 CAMPOS
+      // ======================================================
+      // 🔥 RECORRER CAMPOS
+      // ======================================================
+
       for (const key in form) {
 
         if (
@@ -952,7 +967,10 @@ app.post(
 
       }
 
+      // ======================================================
       // 📊 GUARDAR
+      // ======================================================
+
       const correlativo =
         await guardarEnSheet(
           tipo,
@@ -960,7 +978,10 @@ app.post(
           extras
         );
 
+      // ======================================================
       // 📩 MENSAJE
+      // ======================================================
+
       let mensaje =
         `🚖 ${registroBase.titulo}\n\n`;
 
@@ -998,7 +1019,10 @@ app.post(
       mensaje +=
         `\n📌 REGISTRO: ${registroBase.fecha_registro}`;
 
+      // ======================================================
       // 📲 ENVÍOS
+      // ======================================================
+
       await enviarMensaje(
         "51961507276",
         mensaje
@@ -1036,7 +1060,10 @@ app.post(
   }
 );
 
+// ======================================================
 // 🚀 SERVER
+// ======================================================
+
 const PORT =
   process.env.PORT ||
   3000;
