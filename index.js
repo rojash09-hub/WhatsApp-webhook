@@ -436,7 +436,7 @@ async function enviarFlow(
 
     }
 
-    // ✅ TEMPLATE FLOW
+    // ✅ TEMPLATE
     await axios.post(
       `https://graph.facebook.com/v20.0/${PHONE_NUMBER_ID}/messages`,
       {
@@ -457,31 +457,9 @@ async function enviarFlow(
           language: {
 
             code:
-              "es_PE"
+              "es"
 
-          },
-
-          components: [
-            {
-
-              type:
-                "button",
-
-              sub_type:
-                "flow",
-
-              index:
-                "0",
-
-              parameters: [
-                {
-                  type:
-                    "action"
-                }
-              ]
-
-            }
-          ]
+          }
 
         }
 
@@ -589,21 +567,23 @@ async function guardarEnSheet(
     // ✅ EXALMAR
     if (tipo === "EXALMAR") {
 
-      values = [[
-        registroBase.titulo || "",
-        correlativo || "",
-        registroBase.fecha || "",
-        registroBase.hora || "",
-        registroBase.autoriza || "",
-        registroBase.nombre || "",
-        registroBase.inicio || "",
-        registroBase.destino || "",
-        "",
-        "",
-        registroBase.observaciones || "",
-        JSON.stringify(extras),
-        registroBase.fecha_registro || ""
-      ]];
+      values = [
+        [
+          registroBase.titulo || "",
+          correlativo || "",
+          registroBase.fecha || "",
+          registroBase.hora || "",
+          registroBase.autoriza || "",
+          registroBase.nombre || "",
+          registroBase.inicio || "",
+          registroBase.destino || "",
+          "",
+          "",
+          registroBase.observaciones || "",
+          JSON.stringify(extras),
+          registroBase.fecha_registro || ""
+        ]
+      ];
 
       range = "Data!A:M";
 
@@ -612,22 +592,24 @@ async function guardarEnSheet(
     // ✅ CENTINELA
     else if (tipo === "CENTINELA") {
 
-      values = [[
-        registroBase.titulo || "",
-        correlativo || "",
-        registroBase.fecha || "",
-        registroBase.hora || "",
-        registroBase.solicitante || "",
-        registroBase.tipo_unidad || "",
-        registroBase.usuario || "",
-        registroBase.inicio || "",
-        registroBase.destino || "",
-        "",
-        "",
-        registroBase.observaciones || "",
-        JSON.stringify(extras),
-        registroBase.fecha_registro || ""
-      ]];
+      values = [
+        [
+          registroBase.titulo || "",
+          correlativo || "",
+          registroBase.fecha || "",
+          registroBase.hora || "",
+          registroBase.solicitante || "",
+          registroBase.tipo_unidad || "",
+          registroBase.usuario || "",
+          registroBase.inicio || "",
+          registroBase.destino || "",
+          "",
+          "",
+          registroBase.observaciones || "",
+          JSON.stringify(extras),
+          registroBase.fecha_registro || ""
+        ]
+      ];
 
       range = "Data!A:N";
 
@@ -636,21 +618,23 @@ async function guardarEnSheet(
     // ✅ GLOBAL
     else if (tipo === "GLOBAL") {
 
-      values = [[
-        registroBase.titulo || "",
-        correlativo || "",
-        registroBase.empresa || "",
-        registroBase.fecha || "",
-        registroBase.hora || "",
-        registroBase.usuario || "",
-        registroBase.inicio || "",
-        registroBase.destino || "",
-        "",
-        "",
-        registroBase.observaciones || "",
-        JSON.stringify(extras),
-        registroBase.fecha_registro || ""
-      ]];
+      values = [
+        [
+          registroBase.titulo || "",
+          correlativo || "",
+          registroBase.empresa || "",
+          registroBase.fecha || "",
+          registroBase.hora || "",
+          registroBase.usuario || "",
+          registroBase.inicio || "",
+          registroBase.destino || "",
+          "",
+          "",
+          registroBase.observaciones || "",
+          JSON.stringify(extras),
+          registroBase.fecha_registro || ""
+        ]
+      ];
 
       range = "Data!A:M";
 
@@ -659,21 +643,23 @@ async function guardarEnSheet(
     // ✅ PLANTA CALLAO
     else if (tipo === "PLANTA_CALLAO") {
 
-      values = [[
-        registroBase.titulo || "",
-        correlativo || "",
-        registroBase.fecha || "",
-        registroBase.hora || "",
-        registroBase.solicitante || "",
-        registroBase.usuario || "",
-        registroBase.inicio || "",
-        registroBase.destino || "",
-        "",
-        "",
-        registroBase.observaciones || "",
-        JSON.stringify(extras),
-        registroBase.fecha_registro || ""
-      ]];
+      values = [
+        [
+          registroBase.titulo || "",
+          correlativo || "",
+          registroBase.fecha || "",
+          registroBase.hora || "",
+          registroBase.solicitante || "",
+          registroBase.usuario || "",
+          registroBase.inicio || "",
+          registroBase.destino || "",
+          "",
+          "",
+          registroBase.observaciones || "",
+          JSON.stringify(extras),
+          registroBase.fecha_registro || ""
+        ]
+      ];
 
       range = "Data!A:M";
 
@@ -724,6 +710,84 @@ app.post(
 
     try {
 
+      // 🔐 FLOW ENCRYPTED
+      if (
+        req.body
+          .encrypted_aes_key
+      ) {
+
+        const {
+          data,
+          aesKey,
+          iv
+        } =
+          decryptFlowData(
+            req.body
+          );
+
+        if (
+          data.action ===
+          "ping"
+        ) {
+
+          const pingResponse = {
+
+            data: {
+
+              status:
+                "active"
+
+            }
+
+          };
+
+          const encryptedResponse =
+            encryptResponse(
+              pingResponse,
+              aesKey,
+              iv
+            );
+
+          return res
+            .status(200)
+            .set(
+              "Content-Type",
+              "text/plain"
+            )
+            .send(
+              encryptedResponse
+            );
+
+        }
+
+        const response = {
+
+          screen:
+            "SUCCESS",
+
+          data: {}
+
+        };
+
+        const encryptedResponse =
+          encryptResponse(
+            response,
+            aesKey,
+            iv
+          );
+
+        return res
+          .status(200)
+          .set(
+            "Content-Type",
+            "text/plain"
+          )
+          .send(
+            encryptedResponse
+          );
+
+      }
+
       const entry =
         req.body
           ?.entry?.[0]
@@ -767,6 +831,46 @@ app.post(
             await enviarFlow(
               numeroRemitente,
               key
+            );
+
+            return res.sendStatus(200);
+
+          }
+
+          if (
+            numeroRemitente ===
+            "51961507276" &&
+            texto.startsWith(
+              cfg.command + " "
+            )
+          ) {
+
+            const partes =
+              texto.split(" ");
+
+            let numeroDestino =
+              partes[1];
+
+            if (
+              !numeroDestino.startsWith(
+                "51"
+              )
+            ) {
+
+              numeroDestino =
+                "51" +
+                numeroDestino;
+
+            }
+
+            await enviarFlow(
+              numeroDestino,
+              key
+            );
+
+            await enviarMensaje(
+              numeroRemitente,
+              `✅ FORMULARIO ENVIADO A ${numeroDestino}`
             );
 
             return res.sendStatus(200);
