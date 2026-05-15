@@ -658,6 +658,86 @@ async function guardarEnSheet(
 
 }
 
+// 🚀 WEBHOOK
+app.post(
+  "/webhook",
+  async (
+    req,
+    res
+  ) => {
+
+    try {
+
+      const entry =
+        req.body
+          ?.entry?.[0]
+          ?.changes?.[0]
+          ?.value;
+
+      if (!entry) {
+
+        return res.sendStatus(200);
+
+      }
+
+      const numeroRemitente =
+        entry
+          ?.messages?.[0]
+          ?.from;
+
+      const mensajeTexto =
+        entry
+          ?.messages?.[0]
+          ?.text?.body;
+
+      // 📩 COMANDOS
+      if (mensajeTexto) {
+
+        const texto =
+          mensajeTexto
+            .trim()
+            .toLowerCase();
+
+        for (const key in CONFIG) {
+
+          const cfg =
+            CONFIG[key];
+
+          // SIMPLE
+          if (
+            texto ===
+            cfg.command
+          ) {
+
+            await enviarFlow(
+              numeroRemitente,
+              key
+            );
+
+            return res.sendStatus(200);
+
+          }
+
+        }
+
+      }
+
+      return res.sendStatus(200);
+
+    } catch (error) {
+
+      console.error(
+        "❌ ERROR GENERAL:",
+        error
+      );
+
+      return res.sendStatus(500);
+
+    }
+
+  }
+);
+
 // 🚀 SERVER
 const PORT =
   process.env.PORT ||
