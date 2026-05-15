@@ -35,6 +35,11 @@ console.log(
   PRIVATE_KEY ? "OK" : "NULL"
 );
 
+console.log(
+  "PHONE_NUMBER_ID:",
+  PHONE_NUMBER_ID
+);
+
 // 📊 SHEETS
 const SHEETS = {
   EXALMAR:
@@ -285,6 +290,11 @@ async function enviarMensaje(
 
         }
       }
+    );
+
+    console.log(
+      "✅ Mensaje enviado a",
+      numero
     );
 
   } catch (error) {
@@ -663,7 +673,7 @@ app.post(
 
       }
 
-      // 📥 RESPUESTA FLOW NORMAL
+      // 📥 FORMULARIO NORMAL
       const form =
         entry
           ?.messages?.[0]
@@ -831,7 +841,7 @@ app.post(
       mensaje +=
         `\n📌 Registro: ${registroBase.fecha_registro}`;
 
-      // 📲 ENVIAR NOTIFICACIONES
+      // 📲 NOTIFICACIONES
       await enviarMensaje(
         "51961507276",
         mensaje
