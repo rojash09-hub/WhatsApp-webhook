@@ -406,13 +406,12 @@ async function enviarFlow(
 
     }
 
-    // ✅ TEMPLATE SEGÚN EMPRESA
     let templateName = "";
 
     if (tipo === "EXALMAR") {
 
       templateName =
-        "exal_flota";
+        "exalmar_flota";
 
     }
 
@@ -437,47 +436,57 @@ async function enviarFlow(
 
     }
 
-    // ✅ ENVIAR TEMPLATE
-  await axios.post(
-  `https://graph.facebook.com/v20.0/${PHONE_NUMBER_ID}/messages`,
-  {
-    messaging_product:
-      "whatsapp",
+    // ✅ ENVÍO TEMPLATE
+    await axios.post(
+      `https://graph.facebook.com/v20.0/${PHONE_NUMBER_ID}/messages`,
+      {
+        messaging_product:
+          "whatsapp",
 
-    to:
-      numero,
+        to:
+          numero,
 
-    type:
-      "template",
+        type:
+          "template",
 
-    template: {
+        template: {
 
-      name:
-        templateName,
+          name:
+            templateName,
 
-      language: {
+          language: {
 
-        code:
-          "es_PE"
+            code:
+              "es_PE"
 
+          }
+
+        }
+
+      },
+      {
+        headers: {
+
+          Authorization:
+            `Bearer ${WHATSAPP_TOKEN}`,
+
+          "Content-Type":
+            "application/json"
+
+        }
       }
+    );
 
-    }
+  } catch (error) {
 
-  },
-  {
-    headers: {
+    console.error(
+      "❌ ERROR FLOW:",
+      error.response?.data || error
+    );
 
-      Authorization:
-        `Bearer ${WHATSAPP_TOKEN}`,
-
-      "Content-Type":
-        "application/json"
-
-    }
   }
-);
 
+}
 
 // 🔢 CORRELATIVO
 async function generarCorrelativo(
@@ -555,102 +564,90 @@ async function guardarEnSheet(
     let values = [];
     let range = "";
 
-    // ✅ EXALMAR
     if (tipo === "EXALMAR") {
 
-      values = [
-        [
-          registroBase.titulo || "",
-          correlativo || "",
-          registroBase.fecha || "",
-          registroBase.hora || "",
-          registroBase.autoriza || "",
-          registroBase.nombre || "",
-          registroBase.inicio || "",
-          registroBase.destino || "",
-          "",
-          "",
-          registroBase.observaciones || "",
-          JSON.stringify(extras),
-          registroBase.fecha_registro || ""
-        ]
-      ];
+      values = [[
+        registroBase.titulo || "",
+        correlativo || "",
+        registroBase.fecha || "",
+        registroBase.hora || "",
+        registroBase.autoriza || "",
+        registroBase.nombre || "",
+        registroBase.inicio || "",
+        registroBase.destino || "",
+        "",
+        "",
+        registroBase.observaciones || "",
+        JSON.stringify(extras),
+        registroBase.fecha_registro || ""
+      ]];
 
       range = "Data!A:M";
 
     }
 
-    // ✅ CENTINELA
     else if (tipo === "CENTINELA") {
 
-      values = [
-        [
-          registroBase.titulo || "",
-          correlativo || "",
-          registroBase.fecha || "",
-          registroBase.hora || "",
-          registroBase.solicitante || "",
-          registroBase.tipo_unidad || "",
-          registroBase.usuario || "",
-          registroBase.inicio || "",
-          registroBase.destino || "",
-          "",
-          "",
-          registroBase.observaciones || "",
-          JSON.stringify(extras),
-          registroBase.fecha_registro || ""
-        ]
-      ];
+      values = [[
+        registroBase.titulo || "",
+        correlativo || "",
+        registroBase.fecha || "",
+        registroBase.hora || "",
+        registroBase.solicitante || "",
+        registroBase.tipo_unidad || "",
+        registroBase.usuario || "",
+        registroBase.inicio || "",
+        registroBase.destino || "",
+        "",
+        "",
+        registroBase.observaciones || "",
+        JSON.stringify(extras),
+        registroBase.fecha_registro || ""
+      ]];
 
       range = "Data!A:N";
 
     }
 
-    // ✅ GLOBAL
     else if (tipo === "GLOBAL") {
 
-      values = [
-        [
-          registroBase.titulo || "",
-          correlativo || "",
-          registroBase.empresa || "",
-          registroBase.fecha || "",
-          registroBase.hora || "",
-          registroBase.usuario || "",
-          registroBase.inicio || "",
-          registroBase.destino || "",
-          "",
-          "",
-          registroBase.observaciones || "",
-          JSON.stringify(extras),
-          registroBase.fecha_registro || ""
-        ]
-      ];
+      values = [[
+        registroBase.titulo || "",
+        correlativo || "",
+        registroBase.empresa || "",
+        registroBase.fecha || "",
+        registroBase.hora || "",
+        registroBase.usuario || "",
+        registroBase.inicio || "",
+        registroBase.destino || "",
+        "",
+        "",
+        registroBase.observaciones || "",
+        JSON.stringify(extras),
+        registroBase.fecha_registro || ""
+      ]];
 
       range = "Data!A:M";
 
     }
 
-    // ✅ PLANTA CALLAO
     else if (tipo === "PLANTA_CALLAO") {
 
-      values = [
-        [
-          registroBase.titulo || "",
-          correlativo || "",
-          registroBase.fecha || "",
-          registroBase.hora || "",
-          registroBase.solicitante || "",
-          registroBase.usuario || "",
-          registroBase.inicio || "",
-          registroBase.destino || "",
-          "",
-          "",
-          registroBase.observaciones || "",
-          JSON.stringify(extras),
-          registroBase.fecha_registro || ""
-        ]
-      ];
+      values = [[
+        registroBase.titulo || "",
+        correlativo || "",
+        registroBase.fecha || "",
+        registroBase.hora || "",
+        registroBase.solicitante || "",
+        registroBase.usuario || "",
+        registroBase.inicio || "",
+        registroBase.destino || "",
+        "",
+        "",
+        registroBase.observaciones || "",
+        JSON.stringify(extras),
+        registroBase.fecha_registro || ""
+      ]];
 
       range = "Data!A:M";
 
@@ -701,84 +698,6 @@ app.post(
 
     try {
 
-      // 🔐 FLOW ENCRYPTED
-      if (
-        req.body
-          .encrypted_aes_key
-      ) {
-
-        const {
-          data,
-          aesKey,
-          iv
-        } =
-          decryptFlowData(
-            req.body
-          );
-
-        if (
-          data.action ===
-          "ping"
-        ) {
-
-          const pingResponse = {
-
-            data: {
-
-              status:
-                "active"
-
-            }
-
-          };
-
-          const encryptedResponse =
-            encryptResponse(
-              pingResponse,
-              aesKey,
-              iv
-            );
-
-          return res
-            .status(200)
-            .set(
-              "Content-Type",
-              "text/plain"
-            )
-            .send(
-              encryptedResponse
-            );
-
-        }
-
-        const response = {
-
-          screen:
-            "SUCCESS",
-
-          data: {}
-
-        };
-
-        const encryptedResponse =
-          encryptResponse(
-            response,
-            aesKey,
-            iv
-          );
-
-        return res
-          .status(200)
-          .set(
-            "Content-Type",
-            "text/plain"
-          )
-          .send(
-            encryptedResponse
-          );
-
-      }
-
       const entry =
         req.body
           ?.entry?.[0]
@@ -814,7 +733,6 @@ app.post(
           const cfg =
             CONFIG[key];
 
-          // SIMPLE
           if (
             texto ===
             cfg.command
@@ -823,47 +741,6 @@ app.post(
             await enviarFlow(
               numeroRemitente,
               key
-            );
-
-            return res.sendStatus(200);
-
-          }
-
-          // ADMIN
-          if (
-            numeroRemitente ===
-            "51961507276" &&
-            texto.startsWith(
-              cfg.command + " "
-            )
-          ) {
-
-            const partes =
-              texto.split(" ");
-
-            let numeroDestino =
-              partes[1];
-
-            if (
-              !numeroDestino.startsWith(
-                "51"
-              )
-            ) {
-
-              numeroDestino =
-                "51" +
-                numeroDestino;
-
-            }
-
-            await enviarFlow(
-              numeroDestino,
-              key
-            );
-
-            await enviarMensaje(
-              numeroRemitente,
-              `✅ FORMULARIO ENVIADO A ${numeroDestino}`
             );
 
             return res.sendStatus(200);
