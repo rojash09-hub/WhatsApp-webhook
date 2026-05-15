@@ -33,7 +33,7 @@ const PRIVATE_KEY =
     : null;
 
 // ======================================================
-// CONFIG FLOWS
+// CONFIGURACION FLOWS
 // ======================================================
 
 const CONFIG = {
@@ -177,7 +177,7 @@ app.get("/webhook", (req, res) => {
 });
 
 // ======================================================
-// FLOW DECRYPT
+// DESCIFRAR FLOW
 // ======================================================
 
 function decryptFlowData(body) {
@@ -262,7 +262,7 @@ function decryptFlowData(body) {
 }
 
 // ======================================================
-// ENCRYPT RESPONSE
+// ENCRIPTAR RESPUESTA
 // ======================================================
 
 function flipIv(iv) {
@@ -557,6 +557,7 @@ async function guardarEnSheet(
 
     const auth =
       new google.auth.GoogleAuth({
+
         credentials:
           JSON.parse(
             process.env
@@ -566,13 +567,13 @@ async function guardarEnSheet(
         scopes: [
           "https://www.googleapis.com/auth/spreadsheets"
         ]
+
       });
 
     const sheets =
       google.sheets({
         version:
           "v4",
-
         auth
       });
 
@@ -593,15 +594,13 @@ async function guardarEnSheet(
       registroBase.hora || "",
 
       registroBase.solicitante ||
-        registroBase.autoriza ||
-        registroBase.empresa ||
-        "",
-
-      registroBase.tipo_unidad || "",
+      registroBase.autoriza ||
+      registroBase.empresa ||
+      "",
 
       registroBase.usuario ||
-        registroBase.nombre ||
-        "",
+      registroBase.nombre ||
+      "",
 
       registroBase.inicio || "",
 
@@ -630,7 +629,7 @@ async function guardarEnSheet(
           cfg.spreadsheetId,
 
         range:
-          "Data!A:N",
+          "Data!A:M",
 
         valueInputOption:
           "USER_ENTERED",
@@ -671,7 +670,7 @@ app.post(
     try {
 
       // ======================================================
-      // FLOW ENCRYPTED
+      // FLOW ENCRIPTADO
       // ======================================================
 
       if (
@@ -738,7 +737,7 @@ app.post(
       }
 
       // ======================================================
-      // WHATSAPP
+      // MENSAJES
       // ======================================================
 
       const entry =
@@ -764,7 +763,7 @@ app.post(
           ?.text?.body;
 
       // ======================================================
-      // COMANDOS FLOW
+      // ABREVIATURAS
       // ======================================================
 
       if (mensajeTexto) {
@@ -774,10 +773,7 @@ app.post(
             .trim()
             .toUpperCase();
 
-        // EXALMAR
-        if (
-          texto === "XF"
-        ) {
+        if (texto === "XF") {
 
           await enviarFlow(
             numero,
@@ -788,10 +784,7 @@ app.post(
 
         }
 
-        // CENTINELA
-        if (
-          texto === "CF"
-        ) {
+        if (texto === "CF") {
 
           await enviarFlow(
             numero,
@@ -802,10 +795,7 @@ app.post(
 
         }
 
-        // PLANTA CALLAO
-        if (
-          texto === "PC"
-        ) {
+        if (texto === "PC") {
 
           await enviarFlow(
             numero,
@@ -816,10 +806,7 @@ app.post(
 
         }
 
-        // GLOBAL
-        if (
-          texto === "GLOBAL"
-        ) {
+        if (texto === "GLOBAL") {
 
           await enviarFlow(
             numero,
@@ -1009,31 +996,52 @@ app.post(
       mensaje +=
         `🆔 CODIGO: ${correlativo}\n\n`;
 
-      for (
-        const key in registroBase
-      ) {
-
-        if (
-          [
-            "titulo",
-            "fecha_registro"
-          ].includes(key)
-        ) {
-
-          continue;
-
-        }
-
-        if (
-          !registroBase[key]
-        ) {
-
-          continue;
-
-        }
+      if (registroBase.solicitante) {
 
         mensaje +=
-          `🔹 ${key.toUpperCase()}: ${registroBase[key]}\n`;
+          `🔹 SOLICITANTE: ${registroBase.solicitante}\n`;
+
+      }
+
+      if (registroBase.usuario) {
+
+        mensaje +=
+          `🔹 USUARIO: ${registroBase.usuario}\n`;
+
+      }
+
+      if (registroBase.inicio) {
+
+        mensaje +=
+          `🔹 INICIO: ${registroBase.inicio}\n`;
+
+      }
+
+      if (registroBase.destino) {
+
+        mensaje +=
+          `🔹 DESTINO: ${registroBase.destino}\n`;
+
+      }
+
+      if (registroBase.fecha) {
+
+        mensaje +=
+          `🔹 FECHA: ${registroBase.fecha}\n`;
+
+      }
+
+      if (registroBase.hora) {
+
+        mensaje +=
+          `🔹 HORA: ${registroBase.hora}\n`;
+
+      }
+
+      if (registroBase.observaciones) {
+
+        mensaje +=
+          `🔹 OBSERVACIONES: ${registroBase.observaciones}\n`;
 
       }
 
