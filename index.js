@@ -406,6 +406,38 @@ async function enviarFlow(
 
     }
 
+    // ✅ TEMPLATE SEGÚN EMPRESA
+    let templateName = "";
+
+    if (tipo === "EXALMAR") {
+
+      templateName =
+        "exal_flota";
+
+    }
+
+    else if (tipo === "CENTINELA") {
+
+      templateName =
+        "centinela_flota";
+
+    }
+
+    else if (tipo === "PLANTA_CALLAO") {
+
+      templateName =
+        "planta_callao";
+
+    }
+
+    else if (tipo === "GLOBAL") {
+
+      templateName =
+        "global";
+
+    }
+
+    // ✅ ENVIAR TEMPLATE
     await axios.post(
       `https://graph.facebook.com/v20.0/${PHONE_NUMBER_ID}/messages`,
       {
@@ -416,41 +448,22 @@ async function enviarFlow(
           numero,
 
         type:
-          "interactive",
+          "template",
 
-        interactive: {
+        template: {
 
-          type:
-            "flow",
+          name:
+            templateName,
 
-          body: {
+          language: {
 
-            text:
-              `🚖 ${cfg.title}\nSolicita aquí:`
-
-          },
-
-          action: {
-
-            name:
-              "flow",
-
-            parameters: {
-
-              flow_message_version:
-                "3",
-
-              flow_id:
-                cfg.flowId,
-
-              flow_cta:
-                "ABRIR"
-
-            }
+            code:
+              "es"
 
           }
 
         }
+
       },
       {
         headers: {
@@ -475,7 +488,6 @@ async function enviarFlow(
   }
 
 }
-
 // 🔢 CORRELATIVO
 async function generarCorrelativo(
   sheets,
