@@ -359,6 +359,93 @@ async function enviarMensaje(
 
 }
 
+// 📲 ENVIAR FLOW
+async function enviarFlow(
+  numero,
+  tipo
+) {
+
+  try {
+
+    const cfg =
+      CONFIG[tipo];
+
+    if (!cfg) {
+
+      return;
+
+    }
+
+    await axios.post(
+      `https://graph.facebook.com/v20.0/${PHONE_NUMBER_ID}/messages`,
+      {
+        messaging_product:
+          "whatsapp",
+
+        to:
+          numero,
+
+        type:
+          "interactive",
+
+        interactive: {
+
+          type:
+            "flow",
+
+          body: {
+
+            text:
+              `🚖 ${cfg.title}\nSolicita aquí:`
+
+          },
+
+          action: {
+
+            name:
+              "flow",
+
+            parameters: {
+
+              flow_message_version:
+                "3",
+
+              flow_id:
+                cfg.flowId,
+
+              flow_cta:
+                "ABRIR"
+
+            }
+
+          }
+
+        }
+      },
+      {
+        headers: {
+
+          Authorization:
+            `Bearer ${WHATSAPP_TOKEN}`,
+
+          "Content-Type":
+            "application/json"
+
+        }
+      }
+    );
+
+  } catch (error) {
+
+    console.error(
+      "❌ ERROR FLOW:",
+      error.response?.data || error
+    );
+
+  }
+
+}
+
 // 🔢 CORRELATIVO
 async function generarCorrelativo(
   sheets,
@@ -418,7 +505,8 @@ async function guardarEnSheet(
 
     const sheets =
       google.sheets({
-        version: "v4",
+        version:
+          "v4",
         auth
       });
 
@@ -460,7 +548,7 @@ async function guardarEnSheet(
 
     }
 
-    // ✅ EXALMAR FLOTA
+    // ✅ EXALMAR
     else if (tipo === "EXALMAR") {
 
       values = [
