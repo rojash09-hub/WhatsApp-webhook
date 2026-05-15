@@ -2,15 +2,10 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const crypto = require("crypto");
 const axios = require("axios");
-const { google } = require("googleapis");
 
 const app = express();
 
-app.use(
-  bodyParser.json({
-    limit: "10mb"
-  })
-);
+app.use(bodyParser.json({ limit: "10mb" }));
 
 // 🔐 VARIABLES DE ENTORNO
 const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
@@ -20,74 +15,27 @@ const PRIVATE_KEY = process.env.PRIVATE_KEY_ACCOUNT
   ? process.env.PRIVATE_KEY_ACCOUNT.replace(/\\n/g, "\n").replace(/\r/g, "")
   : null;
 
-// 🇵🇪 FUNCIONES DE TIEMPO PERÚ
-function fechaPeru() {
-  return new Date(
-    new Date().toLocaleString("en-US", {
-      timeZone: "America/Lima"
-    })
-  );
-}
-
 // ✅ CONFIGURACIÓN DE FLOWS
-// Nota: Asegúrate de que los nombres de las plantillas y IDs sean correctos
 const CONFIG = {
   EXALMAR: {
-    title: "EXALMAR FLOTA",
-    flowId: "1487962506700406",
     command: "xf",
-    template: "exal_flota",
-    sheetId: "1LM9JMK8yySI9CVCe785bDdsi-j1fFaJPpvIE19zDkiw",
-    cta: "SOLICITAR TAXI", // Texto del botón en Meta
-    screen: "GLOBAL"      // Pantalla inicial en Flow Builder
+    template: "exal_flota"
   },
   CENTINELA: {
-    title: "CENTINELA FLOTA",
-    flowId: "1562186275266854",
     command: "cf",
-    template: "centinela_flota",
-    sheetId: "1z7C4HyHc3VIMxnGHWLbDTynXslutqP5gT-j_zMW1dIU",
-    cta: "SOLICITAR TAXI",
-    screen: "GLOBAL"
+    template: "centinela_flota"
   },
   PLANTA_CALLAO: {
-    title: "PLANTA CALLAO",
-    flowId: "3257150361132563",
     command: "pc",
-    template: "planta_callao",
-    sheetId: "189ivlWlIESMcZ05_D12-5bpBIPPvLwStaRxSUfxZ2aI",
-    cta: "SOLICITAR TAXI",
-    screen: "GLOBAL"
+    template: "planta_callao"
   },
   GLOBAL: {
-    title: "GLOBAL",
-    flowId: "2051713752436319",
     command: "global",
-    template: "global",
-    sheetId: "1reGQpDdBpgtE0Wd4s2xM17x2dzzEIpV-DL2qEsvJgVc",
-    cta: "SOLICITAR TAXI",
-    screen: "GLOBAL"
+    template: "global"
   }
 };
 
-// ❤️ HEALTH CHECK
-app.get("/", (req, res) => {
-  return res.status(200).json({ status: "ok" });
-});
-
-// ✅ VERIFY WEBHOOK (GET)
-app.get("/webhook", (req, res) => {
-  const mode = req.query["hub.mode"];
-  const token = req.query["hub.verify_token"];
-  const challenge = req.query["hub.challenge"];
-
-  if (mode === "subscribe" && token === VERIFY_TOKEN) {
-    return res.status(200).send(challenge);
-  }
-  return res.sendStatus(403);
-});
-
-// 🔓 DESCIFRAR DATA DEL FLOW (Cuando el usuario termina el formulario)
+// 🔓 DESCIFRAR FLOW
 function decryptFlowData(body) {
   const encryptedAesKey = Buffer.from(body.encrypted_aes_key, "base64");
   const iv = Buffer.from(body.initial_vector, "base64");
@@ -107,10 +55,7 @@ function decryptFlowData(body) {
   const decipher = crypto.createDecipheriv("aes-128-gcm", aesKey, iv);
   decipher.setAuthTag(authTag);
 
-  const decrypted = Buffer.concat([
-    decipher.update(cipherText),
-    decipher.final()
-  ]);
+  const decrypted = Buffer.concat([decipher.update(cipherText), decipher.final()]);
 
   return {
     data: JSON.parse(decrypted.toString("utf8")),
@@ -119,7 +64,7 @@ function decryptFlowData(body) {
   };
 }
 
-// 🔁 INVERTIR IV PARA RESPUESTA
+// 🔁 INVERTIR IV
 function flipIv(iv) {
   const flipped = Buffer.alloc(iv.length);
   for (let i = 0; i < iv.length; i++) {
@@ -128,7 +73,7 @@ function flipIv(iv) {
   return flipped;
 }
 
-// 🔐 CIFRAR RESPUESTA PARA EL FLOW
+// 🔐 CIFRAR RESPUESTA
 function encryptResponse(response, aesKey, iv) {
   const flippedIv = flipIv(iv);
   const cipher = crypto.createCipheriv("aes-128-gcm", aesKey, flippedIv);
@@ -139,7 +84,7 @@ function encryptResponse(response, aesKey, iv) {
   return Buffer.concat([encrypted, authTag]).toString("base64");
 }
 
-// 📲 FUNCIÓN PARA ENVIAR EL FLOW (ARREGLADA)
+// 📲 ENVIAR FLOW (CORREGIDO PARA EVITAR "UNEXPECTED KEY FLOW_ID")
 async function enviarFlow(numero, tipo) {
   try {
     const cfg = CONFIG[tipo];
@@ -163,14 +108,8 @@ async function enviarFlow(numero, tipo) {
                 {
                   type: "action",
                   action: {
-                    flow_token: `token_${tipo.toLowerCase()}_${Date.now()}`,
-                    flow_id: cfg.flowId,
-                    flow_cta: cfg.cta || "SOLICITAR TAXI",
-                    flow_action: "navigate",
-                    flow_action_payload: {
-                      screen: cfg.screen || "GLOBAL",
-                      data: {}
-                    }
+                    flow_token: `token_${Date.now()}`
+                    // No incluimos flow_id ni flow_cta aquí porque Meta los toma de la plantilla
                   }
                 }
               ]
@@ -188,40 +127,40 @@ async function enviarFlow(numero, tipo) {
 
     console.log("✅ FLOW ENVIADO:", cfg.template);
   } catch (error) {
-    console.error("❌ ERROR AL ENVIAR FLOW:", JSON.stringify(error.response?.data, null, 2) || error.message);
+    console.error("❌ ERROR AL ENVIAR FLOW:", JSON.stringify(error.response?.data, null, 2));
   }
 }
 
-// 🚀 WEBHOOK PRINCIPAL (POST)
+// 🚀 WEBHOOK
 app.post("/webhook", async (req, res) => {
   try {
-    // 1. Manejar respuesta cifrada del Flow (cuando el usuario envía el form)
+    // 🔐 MANEJO DE FLOWS (CIFRADO)
     if (req.body.encrypted_aes_key) {
       const { data, aesKey, iv } = decryptFlowData(req.body);
-      
-      console.log("📝 DATOS RECIBIDOS DEL FLOW:", data);
+      console.log("📝 DATOS RECIBIDOS:", data);
 
-      // Aquí podrías guardar 'data' en Google Sheets usando cfg.sheetId
+      // RESPONDER AL PING DE META
+      if (data.action === "ping") {
+        const pingRes = encryptResponse({ version: "3.0", data: { status: "active" } }, aesKey, iv);
+        return res.status(200).set("Content-Type", "text/plain").send(pingRes);
+      }
 
-      const encryptedResponse = encryptResponse(
-        { screen: "SUCCESS", data: { extension_message_response: { body: "Gracias!" } } },
+      // RESPUESTA AL FINALIZAR EL FORMULARIO
+      const finalRes = encryptResponse(
+        { screen: "SUCCESS", data: { extension_message_response: { body: "Enviado con éxito" } } },
         aesKey,
         iv
       );
-
-      return res.status(200).set("Content-Type", "text/plain").send(encryptedResponse);
+      return res.status(200).set("Content-Type", "text/plain").send(finalRes);
     }
 
-    // 2. Manejar mensajes entrantes (comandos)
+    // 📩 MANEJO DE MENSAJES (COMANDOS)
     const entry = req.body?.entry?.[0]?.changes?.[0]?.value;
-    if (!entry || !entry.messages) return res.sendStatus(200);
-
-    const numeroRemitente = entry.messages[0].from;
-    const mensajeTexto = entry.messages[0].text?.body;
+    const mensajeTexto = entry?.messages?.[0]?.text?.body;
+    const numeroRemitente = entry?.messages?.[0]?.from;
 
     if (mensajeTexto) {
       const texto = mensajeTexto.trim().toLowerCase();
-
       for (const key in CONFIG) {
         if (texto === CONFIG[key].command) {
           await enviarFlow(numeroRemitente, key);
@@ -237,8 +176,13 @@ app.post("/webhook", async (req, res) => {
   }
 });
 
-// 🚀 INICIO DEL SERVIDOR
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log("🚀 SERVIDOR CORRIENDO EN PUERTO:", PORT);
+// VERIFICACIÓN DEL WEBHOOK
+app.get("/webhook", (req, res) => {
+  if (req.query["hub.mode"] === "subscribe" && req.query["hub.verify_token"] === VERIFY_TOKEN) {
+    return res.send(req.query["hub.challenge"]);
+  }
+  res.sendStatus(403);
 });
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log("🚀 SERVIDOR CORRIENDO EN:", PORT));
