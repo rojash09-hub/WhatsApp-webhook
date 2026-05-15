@@ -485,46 +485,25 @@ async function generarCorrelativo(
 }
 
 // 📊 GUARDAR SHEETS
-async function guardarEnSheet(
-  tipo,
-  registroBase,
-  extras
-) {
-
-  try {
-
-    const auth =
-      new google.auth.GoogleAuth({
-        credentials:
-          JSON.parse(
-            process.env
-              .GOOGLE_CREDENTIALS
-          ),
-
-        scopes: [
-          "https://www.googleapis.com/auth/spreadsheets"
+          registroBase.fecha || "",
+          registroBase.hora || "",
+          registroBase.usuario || "",
+          registroBase.inicio || "",
+          registroBase.destino || "",
+          "",
+          "",
+          registroBase.observaciones || "",
+          JSON.stringify(extras),
+          registroBase.fecha_registro || ""
         ]
-      });
+      ];
 
-    const sheets =
-      google.sheets({
-        version: "v4",
-        auth
-      });
+      range = "Data!A:M";
 
-    const sheetId =
-      CONFIG[tipo].sheetId;
+    }
 
-    const correlativo =
-      await generarCorrelativo(
-        sheets,
-        sheetId
-      );
-
-    let values = [];
-
-    // ✅ SOLO CENTINELA
-    if (tipo === "CENTINELA") {
+    // ✅ PLANTA CALLAO
+    else if (tipo === "PLANTA_CALLAO") {
 
       values = [
         [
@@ -533,10 +512,7 @@ async function guardarEnSheet(
           registroBase.fecha || "",
           registroBase.hora || "",
           registroBase.solicitante || "",
-          registroBase.tipo_unidad || "",
-          registroBase.usuario ||
-          registroBase.nombre ||
-          "",
+          registroBase.usuario || "",
           registroBase.inicio || "",
           registroBase.destino || "",
           "",
@@ -547,32 +523,7 @@ async function guardarEnSheet(
         ]
       ];
 
-    } else {
-
-      // ✅ OTROS FLOWS
-      values = [
-        [
-          registroBase.titulo || "",
-          correlativo || "",
-          registroBase.fecha || "",
-          registroBase.hora || "",
-          registroBase.solicitante ||
-          registroBase.autoriza ||
-          "",
-          registroBase.empresa || "",
-          registroBase.tipo_unidad || "",
-          registroBase.usuario ||
-          registroBase.nombre ||
-          "",
-          registroBase.inicio || "",
-          registroBase.destino || "",
-          "",
-          "",
-          registroBase.observaciones || "",
-          JSON.stringify(extras),
-          registroBase.fecha_registro || ""
-        ]
-      ];
+      range = "Data!A:M";
 
     }
 
@@ -585,9 +536,7 @@ async function guardarEnSheet(
           sheetId,
 
         range:
-          tipo === "CENTINELA"
-            ? "Data!A:N"
-            : "Data!A:O",
+          range,
 
         valueInputOption:
           "USER_ENTERED",
@@ -612,7 +561,6 @@ async function guardarEnSheet(
   }
 
 }
-
 // 🚀 WEBHOOK
 app.post(
   "/webhook",
