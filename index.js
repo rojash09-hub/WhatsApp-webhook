@@ -397,43 +397,22 @@ async function enviarFlow(
 
   try {
 
-    const cfg =
-      CONFIG[tipo];
-
-    if (!cfg) {
-
-      return;
-
-    }
-
     let templateName = "";
 
     if (tipo === "EXALMAR") {
-
-      templateName =
-        "exal_flota";
-
+      templateName = "exal_flota";
     }
 
     else if (tipo === "CENTINELA") {
-
-      templateName =
-        "centinela_flota";
-
+      templateName = "centinela_flota";
     }
 
     else if (tipo === "PLANTA_CALLAO") {
-
-      templateName =
-        "planta_callao";
-
+      templateName = "planta_callao";
     }
 
     else if (tipo === "GLOBAL") {
-
-      templateName =
-        "global";
-
+      templateName = "global";
     }
 
     await axios.post(
@@ -566,23 +545,21 @@ async function guardarEnSheet(
 
     if (tipo === "EXALMAR") {
 
-      values = [
-        [
-          registroBase.titulo || "",
-          correlativo || "",
-          registroBase.fecha || "",
-          registroBase.hora || "",
-          registroBase.autoriza || "",
-          registroBase.nombre || "",
-          registroBase.inicio || "",
-          registroBase.destino || "",
-          "",
-          "",
-          registroBase.observaciones || "",
-          JSON.stringify(extras),
-          registroBase.fecha_registro || ""
-        ]
-      ];
+      values = [[
+        registroBase.titulo || "",
+        correlativo || "",
+        registroBase.fecha || "",
+        registroBase.hora || "",
+        registroBase.autoriza || "",
+        registroBase.nombre || "",
+        registroBase.inicio || "",
+        registroBase.destino || "",
+        "",
+        "",
+        registroBase.observaciones || "",
+        JSON.stringify(extras),
+        registroBase.fecha_registro || ""
+      ]];
 
       range = "Data!A:M";
 
@@ -590,24 +567,22 @@ async function guardarEnSheet(
 
     else if (tipo === "CENTINELA") {
 
-      values = [
-        [
-          registroBase.titulo || "",
-          correlativo || "",
-          registroBase.fecha || "",
-          registroBase.hora || "",
-          registroBase.solicitante || "",
-          registroBase.tipo_unidad || "",
-          registroBase.usuario || "",
-          registroBase.inicio || "",
-          registroBase.destino || "",
-          "",
-          "",
-          registroBase.observaciones || "",
-          JSON.stringify(extras),
-          registroBase.fecha_registro || ""
-        ]
-      ];
+      values = [[
+        registroBase.titulo || "",
+        correlativo || "",
+        registroBase.fecha || "",
+        registroBase.hora || "",
+        registroBase.solicitante || "",
+        registroBase.tipo_unidad || "",
+        registroBase.usuario || "",
+        registroBase.inicio || "",
+        registroBase.destino || "",
+        "",
+        "",
+        registroBase.observaciones || "",
+        JSON.stringify(extras),
+        registroBase.fecha_registro || ""
+      ]];
 
       range = "Data!A:N";
 
@@ -615,23 +590,21 @@ async function guardarEnSheet(
 
     else if (tipo === "GLOBAL") {
 
-      values = [
-        [
-          registroBase.titulo || "",
-          correlativo || "",
-          registroBase.empresa || "",
-          registroBase.fecha || "",
-          registroBase.hora || "",
-          registroBase.usuario || "",
-          registroBase.inicio || "",
-          registroBase.destino || "",
-          "",
-          "",
-          registroBase.observaciones || "",
-          JSON.stringify(extras),
-          registroBase.fecha_registro || ""
-        ]
-      ];
+      values = [[
+        registroBase.titulo || "",
+        correlativo || "",
+        registroBase.empresa || "",
+        registroBase.fecha || "",
+        registroBase.hora || "",
+        registroBase.usuario || "",
+        registroBase.inicio || "",
+        registroBase.destino || "",
+        "",
+        "",
+        registroBase.observaciones || "",
+        JSON.stringify(extras),
+        registroBase.fecha_registro || ""
+      ]];
 
       range = "Data!A:M";
 
@@ -639,23 +612,21 @@ async function guardarEnSheet(
 
     else if (tipo === "PLANTA_CALLAO") {
 
-      values = [
-        [
-          registroBase.titulo || "",
-          correlativo || "",
-          registroBase.fecha || "",
-          registroBase.hora || "",
-          registroBase.solicitante || "",
-          registroBase.usuario || "",
-          registroBase.inicio || "",
-          registroBase.destino || "",
-          "",
-          "",
-          registroBase.observaciones || "",
-          JSON.stringify(extras),
-          registroBase.fecha_registro || ""
-        ]
-      ];
+      values = [[
+        registroBase.titulo || "",
+        correlativo || "",
+        registroBase.fecha || "",
+        registroBase.hora || "",
+        registroBase.solicitante || "",
+        registroBase.usuario || "",
+        registroBase.inicio || "",
+        registroBase.destino || "",
+        "",
+        "",
+        registroBase.observaciones || "",
+        JSON.stringify(extras),
+        registroBase.fecha_registro || ""
+      ]];
 
       range = "Data!A:M";
 
@@ -805,7 +776,6 @@ app.post(
           ?.messages?.[0]
           ?.text?.body;
 
-      // 📩 COMANDOS
       if (mensajeTexto) {
 
         const texto =
