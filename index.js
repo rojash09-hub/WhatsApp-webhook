@@ -1,1019 +1,233 @@
-const express = require("express");
-const bodyParser = require("body-parser");
-const crypto = require("crypto");
-const axios = require("axios");
-const { google } = require("googleapis");
+// 🔥 FORM
+let form =
+  entry
+    ?.messages?.[0]
+    ?.interactive
+    ?.nfm_reply
+    ?.response_json;
 
-const app = express();
+if (!form) {
 
-app.use(
-  bodyParser.json({
-    limit: "10mb"
-  })
-);
-
-// 🔐 VARIABLES
-const VERIFY_TOKEN =
-  process.env.VERIFY_TOKEN;
-
-const WHATSAPP_TOKEN =
-  process.env.WHATSAPP_TOKEN;
-
-const PHONE_NUMBER_ID =
-  process.env.PHONE_NUMBER_ID;
-
-const PRIVATE_KEY =
-  process.env.PRIVATE_KEY_ACCOUNT
-    ? process.env
-        .PRIVATE_KEY_ACCOUNT
-        .replace(/\\n/g, "\n")
-        .replace(/\r/g, "")
-    : null;
-
-// 🇵🇪 FECHA PERÚ
-function fechaPeru() {
-
-  return new Date(
-    new Date().toLocaleString(
-      "en-US",
-      {
-        timeZone:
-          "America/Lima"
-      }
-    )
-  );
+  return res.sendStatus(200);
 
 }
 
-// 🔠 MAYÚSCULAS
-const upper = (text) =>
-  text
-    ? text.toString().toUpperCase()
-    : "";
+// 🔥 STRING → OBJETO
+if (
+  typeof form === "string"
+) {
 
-// 📊 CONFIGURACIÓN
-const CONFIG = {
+  form =
+    JSON.parse(form);
 
-  EXALMAR: {
+}
 
-    flowId:
-      "1487962506700406",
+console.log(
+  "📥 FORM:",
+  form
+);
 
-    command:
-      "xf",
+// ✅ TIPO FLUJO
+const tipo =
+  form.tipo_flujo ||
+  "EXALMAR";
 
-    title:
-      "EXALMAR FLOTA",
+// ✅ CONFIG
+const cfg =
+  CONFIG[tipo];
 
-    sheetId:
-      "1LM9JMK8yySI9CVCe785bDdsi-j1fFaJPpvIE19zDkiw",
+if (!cfg) {
 
-    range:
-      "Data!A:L"
+  console.log(
+    "❌ TIPO NO CONFIGURADO:",
+    tipo
+  );
 
-  },
+  return res.sendStatus(200);
 
-  CENTINELA: {
+}
 
-    flowId:
-      "1562186275266854",
+// ✅ BASE
+const registroBase = {
 
-    command:
-      "cf",
+  titulo:
+    cfg.title,
 
-    title:
-      "CENTINELA FLOTA",
-
-    sheetId:
-      "1z7C4HyHc3VIMxnGHWLbDTynXslutqP5gT-j_zMW1dIU",
-
-    range:
-      "Data!A:M"
-
-  },
-
-  PLANTA: {
-
-    flowId:
-      "3257150361132563",
-
-    command:
-      "pc",
-
-    title:
-      "PLANTA CALLAO",
-
-    sheetId:
-      "189ivlWlIESMcZ05_D12-5bpBIPPvLwStaRxSUfxZ2aI",
-
-    range:
-      "Data!A:L"
-
-  },
-
-  GLOBAL: {
-
-    flowId:
-      "2051713752436319",
-
-    command:
-      "global",
-
-    title:
-      "GLOBAL",
-
-    sheetId:
-      "1reGQpDdBpgtE0Wd4s2xM17x2dzzEIpV-DL2qEsvJgVc",
-
-    range:
-      "Data!A:L"
-
-  }
+  fecha_registro:
+    fechaPeru()
+      .toLocaleString(
+        "es-PE"
+      )
 
 };
 
-// ❤️ HEALTH
-app.get("/", (req, res) => {
+const extras = {};
 
-  return res
-    .status(200)
-    .json({
-      status: "ok"
-    });
+// 🔥 RECORRER CAMPOS
+for (const key in form) {
 
-});
-
-// ✅ VERIFY
-app.get("/webhook", (req, res) => {
-
-  const mode =
-    req.query["hub.mode"];
-
-  const token =
-    req.query["hub.verify_token"];
-
-  const challenge =
-    req.query["hub.challenge"];
-
+  // ❌ IGNORAR FLOW TOKEN
   if (
-    mode === "subscribe" &&
-    token === VERIFY_TOKEN
+    key === "flow_token"
   ) {
 
-    return res
-      .status(200)
-      .send(challenge);
+    continue;
 
   }
 
-  return res.sendStatus(403);
-
-});
-
-// 🔓 DESCIFRAR
-function decryptFlowData(body) {
-
-  const encryptedAesKey =
-    Buffer.from(
-      body.encrypted_aes_key,
-      "base64"
-    );
-
-  const iv =
-    Buffer.from(
-      body.initial_vector,
-      "base64"
-    );
-
-  const encryptedData =
-    Buffer.from(
-      body.encrypted_flow_data,
-      "base64"
-    );
-
-  const aesKey =
-    crypto.privateDecrypt(
-      {
-        key:
-          PRIVATE_KEY,
-
-        padding:
-          crypto.constants
-            .RSA_PKCS1_OAEP_PADDING,
-
-        oaepHash:
-          "sha256"
-      },
-      encryptedAesKey
-    );
-
-  const authTag =
-    encryptedData.slice(-16);
-
-  const cipherText =
-    encryptedData.slice(
-      0,
-      -16
-    );
-
-  const decipher =
-    crypto.createDecipheriv(
-      "aes-128-gcm",
-      aesKey,
-      iv
-    );
-
-  decipher.setAuthTag(
-    authTag
-  );
-
-  const decrypted =
-    Buffer.concat([
-      decipher.update(
-        cipherText
-      ),
-      decipher.final()
-    ]);
-
-  return {
-
-    data:
-      JSON.parse(
-        decrypted.toString(
-          "utf8"
-        )
-      ),
-
-    aesKey,
-    iv
-
-  };
-
-}
-
-// 🔁 IV
-function flipIv(iv) {
-
-  const flipped =
-    Buffer.alloc(iv.length);
-
-  for (
-    let i = 0;
-    i < iv.length;
-    i++
+  // ❌ IGNORAR TIPO FLUJO
+  if (
+    key === "tipo_flujo"
   ) {
 
-    flipped[i] =
-      iv[i] ^ 0xff;
+    continue;
 
   }
 
-  return flipped;
+  let value =
+    form[key];
 
-}
+  // 🔥 OTROS
+  if (
+    value === "OTROS" &&
+    form[
+      `${key}_otro`
+    ]
+  ) {
 
-// 🔐 CIFRAR
-function encryptResponse(
-  response,
-  aesKey,
-  iv
-) {
-
-  const flippedIv =
-    flipIv(iv);
-
-  const cipher =
-    crypto.createCipheriv(
-      "aes-128-gcm",
-      aesKey,
-      flippedIv
-    );
-
-  const payload =
-    Buffer.from(
-      JSON.stringify(
-        response
-      ),
-      "utf8"
-    );
-
-  const encrypted =
-    Buffer.concat([
-      cipher.update(
-        payload
-      ),
-      cipher.final()
-    ]);
-
-  const authTag =
-    cipher.getAuthTag();
-
-  return Buffer
-    .concat([
-      encrypted,
-      authTag
-    ])
-    .toString("base64");
-
-}
-
-// 📲 MENSAJE
-async function enviarMensaje(
-  numero,
-  mensaje
-) {
-
-  try {
-
-    await axios.post(
-      `https://graph.facebook.com/v20.0/${PHONE_NUMBER_ID}/messages`,
-      {
-        messaging_product:
-          "whatsapp",
-
-        to:
-          numero,
-
-        type:
-          "text",
-
-        text: {
-          body:
-            mensaje
-        }
-      },
-      {
-        headers: {
-
-          Authorization:
-            `Bearer ${WHATSAPP_TOKEN}`,
-
-          "Content-Type":
-            "application/json"
-
-        }
-      }
-    );
-
-  } catch (error) {
-
-    console.error(
-      "❌ Error mensaje:",
-      error.response?.data || error
-    );
+    value =
+      form[
+        `${key}_otro`
+      ];
 
   }
 
-}
+  // 🔠 MAYÚSCULAS
+  value =
+    upper(value);
 
-// 📲 FLOW
-async function enviarFlow(
-  numero,
-  flowId,
-  titulo
-) {
+  // 📅 HOY
+  if (
+    key === "fecha" &&
+    value === "HOY"
+  ) {
 
-  try {
+    value =
+      fechaPeru()
+        .toLocaleDateString(
+          "es-PE"
+        );
 
-    await axios.post(
-      `https://graph.facebook.com/v20.0/${PHONE_NUMBER_ID}/messages`,
-      {
-        messaging_product:
-          "whatsapp",
+  }
 
-        to:
-          numero,
+  // ⏰ AHORA
+  if (
+    key === "hora" &&
+    (
+      value === "AHORA" ||
+      value === "AHORA MISMO"
+    )
+  ) {
 
-        type:
-          "interactive",
+    value =
+      fechaPeru()
+        .toLocaleTimeString(
+          "es-PE",
+          {
+            hour:
+              "2-digit",
 
-        interactive: {
+            minute:
+              "2-digit",
 
-          type:
-            "flow",
-
-          body: {
-
-            text:
-              `🚖 ${titulo}\nSolicita aquí:`
-
-          },
-
-          action: {
-
-            name:
-              "flow",
-
-            parameters: {
-
-              flow_message_version:
-                "3",
-
-              flow_id:
-                flowId,
-
-              flow_cta:
-                "ABRIR"
-
-            }
-
+            hour12:
+              false
           }
-
-        }
-      },
-      {
-        headers: {
-
-          Authorization:
-            `Bearer ${WHATSAPP_TOKEN}`,
-
-          "Content-Type":
-            "application/json"
-
-        }
-      }
-    );
-
-  } catch (error) {
-
-    console.error(
-      "❌ Error Flow:",
-      error.response?.data || error
-    );
+        );
 
   }
 
-}
+  // ✅ GUARDAR
+  registroBase[
+    key
+  ] = value;
 
-// 🔢 CORRELATIVO
-async function generarCorrelativo(
-  sheets,
-  sheetId
-) {
-
-  try {
-
-    const response =
-      await sheets
-        .spreadsheets
-        .values
-        .get({
-
-          spreadsheetId:
-            sheetId,
-
-          range:
-            "Data!B:B"
-
-        });
-
-    const rows =
-      response.data.values || [];
-
-    return 100 + rows.length;
-
-  } catch {
-
-    return 101;
-
-  }
+  extras[
+    key
+  ] = value;
 
 }
+
+// 🔥 ELIMINAR CAMPOS BASURA
+delete extras.flow_token;
+delete extras.tipo_flujo;
 
 // 📊 GUARDAR
-async function guardarEnSheet(
-  tipo,
-  registroBase,
-  extras
+const correlativo =
+  await guardarEnSheet(
+    tipo,
+    registroBase,
+    extras
+  );
+
+// 📩 MENSAJE
+let mensaje =
+  `🚖 ${registroBase.titulo}\n\n`;
+
+mensaje +=
+  `🆔 CODIGO: ${correlativo}\n\n`;
+
+// 🔥 CAMPOS
+for (
+  const key in registroBase
 ) {
 
-  try {
+  if (
+    [
+      "titulo",
+      "fecha_registro"
+    ].includes(key)
+  ) {
 
-    const auth =
-      new google.auth.GoogleAuth({
-        credentials:
-          JSON.parse(
-            process.env
-              .GOOGLE_CREDENTIALS
-          ),
-
-        scopes: [
-          "https://www.googleapis.com/auth/spreadsheets"
-        ]
-      });
-
-    const sheets =
-      google.sheets({
-        version:
-          "v4",
-        auth
-      });
-
-    const cfg =
-      CONFIG[tipo];
-
-    const correlativo =
-      await generarCorrelativo(
-        sheets,
-        cfg.sheetId
-      );
-
-    let values = [];
-
-    // EXALMAR
-    if (tipo === "EXALMAR") {
-
-      values = [[
-
-        registroBase.titulo,
-        correlativo,
-        registroBase.fecha,
-        registroBase.hora,
-        registroBase.autoriza,
-        registroBase.nombre,
-        registroBase.inicio,
-        registroBase.destino,
-        "",
-        "",
-        registroBase.observaciones,
-        JSON.stringify(extras),
-        registroBase.fecha_registro
-
-      ]];
-
-    }
-
-    // CENTINELA
-    if (tipo === "CENTINELA") {
-
-      values = [[
-
-        registroBase.titulo,
-        correlativo,
-        registroBase.fecha,
-        registroBase.hora,
-        registroBase.solicitante,
-        registroBase.tipo_unidad,
-        registroBase.usuario,
-        registroBase.inicio,
-        registroBase.destino,
-        "",
-        "",
-        registroBase.observaciones,
-        JSON.stringify(extras),
-        registroBase.fecha_registro
-
-      ]];
-
-    }
-
-    // PLANTA
-    if (tipo === "PLANTA") {
-
-      values = [[
-
-        registroBase.titulo,
-        correlativo,
-        registroBase.fecha,
-        registroBase.hora,
-        registroBase.solicitante,
-        registroBase.usuario,
-        registroBase.inicio,
-        registroBase.destino,
-        "",
-        "",
-        registroBase.observaciones,
-        JSON.stringify(extras),
-        registroBase.fecha_registro
-
-      ]];
-
-    }
-
-    // GLOBAL
-    if (tipo === "GLOBAL") {
-
-      values = [[
-
-        registroBase.titulo,
-        correlativo,
-        registroBase.empresa,
-        registroBase.fecha,
-        registroBase.hora,
-        registroBase.usuario,
-        registroBase.inicio,
-        registroBase.destino,
-        "",
-        "",
-        registroBase.observaciones,
-        JSON.stringify(extras),
-        registroBase.fecha_registro
-
-      ]];
-
-    }
-
-    await sheets
-      .spreadsheets
-      .values
-      .append({
-
-        spreadsheetId:
-          cfg.sheetId,
-
-        range:
-          cfg.range,
-
-        valueInputOption:
-          "USER_ENTERED",
-
-        requestBody: {
-          values
-        }
-
-      });
-
-    return correlativo;
-
-  } catch (error) {
-
-    console.error(
-      "❌ Error Sheets:",
-      error
-    );
-
-    return null;
+    continue;
 
   }
+
+  if (
+    !registroBase[key]
+  ) {
+
+    continue;
+
+  }
+
+  mensaje +=
+    `🔹 ${key.toUpperCase()}: ${registroBase[key]}\n`;
 
 }
 
-// 🚀 WEBHOOK
-app.post(
-  "/webhook",
-  async (req, res) => {
-
-    try {
-
-      // 🔐 FLOW
-      if (
-        req.body
-          .encrypted_aes_key
-      ) {
-
-        const {
-          data,
-          aesKey,
-          iv
-        } =
-          decryptFlowData(
-            req.body
-          );
-
-        if (
-          data.action ===
-          "ping"
-        ) {
-
-          const encrypted =
-            encryptResponse(
-              {
-                data: {
-                  status:
-                    "active"
-                }
-              },
-              aesKey,
-              iv
-            );
-
-          return res
-            .status(200)
-            .set(
-              "Content-Type",
-              "text/plain"
-            )
-            .send(encrypted);
-
-        }
-
-        const encrypted =
-          encryptResponse(
-            {
-              screen:
-                "SUCCESS",
-
-              data: {}
-            },
-            aesKey,
-            iv
-          );
-
-        return res
-          .status(200)
-          .set(
-            "Content-Type",
-            "text/plain"
-          )
-          .send(encrypted);
-
-      }
-
-      // 📲 NORMAL
-      const entry =
-        req.body
-          ?.entry?.[0]
-          ?.changes?.[0]
-          ?.value;
-
-      if (!entry) {
-
-        return res.sendStatus(200);
-
-      }
-
-      const numero =
-        entry
-          ?.messages?.[0]
-          ?.from;
-
-      // 📩 TEXTO
-      const mensajeTexto =
-        entry
-          ?.messages?.[0]
-          ?.text?.body;
-
-      if (mensajeTexto) {
-
-        const texto =
-          mensajeTexto
-            .trim()
-            .toLowerCase();
-
-        // ENVÍO SIMPLE
-        for (const tipo in CONFIG) {
-
-          const cfg =
-            CONFIG[tipo];
-
-          if (
-            texto ===
-            cfg.command
-          ) {
-
-            await enviarFlow(
-              numero,
-              cfg.flowId,
-              cfg.title
-            );
-
-            return res.sendStatus(200);
-
-          }
-
-          // ADMIN
-          if (
-            numero ===
-            "51961507276" &&
-            texto.startsWith(
-              cfg.command + " "
-            )
-          ) {
-
-            let numeroDestino =
-              texto.split(" ")[1];
-
-            if (
-              !numeroDestino.startsWith(
-                "51"
-              )
-            ) {
-
-              numeroDestino =
-                "51" +
-                numeroDestino;
-
-            }
-
-            await enviarFlow(
-              numeroDestino,
-              cfg.flowId,
-              cfg.title
-            );
-
-            await enviarMensaje(
-              numero,
-              `✅ FLOW ENVIADO A ${numeroDestino}`
-            );
-
-            return res.sendStatus(200);
-
-          }
-
-        }
-
-      }
-
-      // 📥 FORM
-      let form =
-        entry
-          ?.messages?.[0]
-          ?.interactive
-          ?.nfm_reply
-          ?.response_json;
-
-      if (!form) {
-
-        return res.sendStatus(200);
-
-      }
-
-      if (
-        typeof form ===
-        "string"
-      ) {
-
-        form =
-          JSON.parse(form);
-
-      }
-
-      const tipo =
-        form.tipo_flujo ||
-        "EXALMAR";
-
-      const registroBase = {
-
-        titulo:
-          CONFIG[tipo].title,
-
-        fecha_registro:
-          fechaPeru()
-            .toLocaleString(
-              "es-PE"
-            )
-
-      };
-
-      const extras = {};
-
-      for (const key in form) {
-
-        let value =
-          form[key];
-
-        if (
-          value === "OTROS" &&
-          form[
-            `${key}_otro`
-          ]
-        ) {
-
-          value =
-            form[
-              `${key}_otro`
-            ];
-
-        }
-
-        value =
-          upper(value);
-
-        // 📅
-        if (
-          key === "fecha" &&
-          value === "HOY"
-        ) {
-
-          value =
-            fechaPeru()
-              .toLocaleDateString(
-                "es-PE"
-              );
-
-        }
-
-        // ⏰
-        if (
-          key === "hora" &&
-          (
-            value === "AHORA" ||
-            value === "AHORA MISMO"
-          )
-        ) {
-
-          value =
-            fechaPeru()
-              .toLocaleTimeString(
-                "es-PE",
-                {
-                  hour:
-                    "2-digit",
-
-                  minute:
-                    "2-digit",
-
-                  hour12:
-                    false
-                }
-              );
-
-        }
-
-        registroBase[
-          key
-        ] = value;
-
-        extras[key] =
-          value;
-
-      }
-
-      delete extras.flow_token;
-
-      const correlativo =
-        await guardarEnSheet(
-          tipo,
-          registroBase,
-          extras
-        );
-
-      // 📩 MENSAJE
-      let mensaje =
-        `🚖 ${registroBase.titulo}\n\n`;
-
-      mensaje +=
-        `🆔 CODIGO: ${correlativo}\n\n`;
-
-      for (const key in registroBase) {
-
-        if (
-          [
-            "titulo",
-            "fecha_registro"
-          ].includes(key)
-        ) {
-
-          continue;
-
-        }
-
-        mensaje +=
-          `🔹 ${key.toUpperCase()}: ${registroBase[key]}\n`;
-
-      }
-
-      mensaje +=
-        `\n📌 REGISTRO: ${registroBase.fecha_registro}`;
-
-      await enviarMensaje(
-        "51961507276",
-        mensaje
-      );
-
-      await enviarMensaje(
-        "51986767350",
-        mensaje
-      );
-
-      if (numero) {
-
-        await enviarMensaje(
-          numero,
-          mensaje
-        );
-
-      }
-
-      return res.sendStatus(200);
-
-    } catch (error) {
-
-      console.error(
-        "❌ ERROR:",
-        error
-      );
-
-      return res.sendStatus(500);
-
-    }
-
-  }
+// 📌 REGISTRO
+mensaje +=
+  `\n📌 REGISTRO: ${registroBase.fecha_registro}`;
+
+// 📲 ENVÍOS
+await enviarMensaje(
+  "51961507276",
+  mensaje
 );
 
-// 🚀 SERVER
-const PORT =
-  process.env.PORT ||
-  3000;
-
-app.listen(
-  PORT,
-  () => {
-
-    console.log(
-      "🚀 Servidor:",
-      PORT
-    );
-
-  }
+await enviarMensaje(
+  "51986767350",
+  mensaje
 );
+
+if (numero) {
+
+  await enviarMensaje(
+    numero,
+    mensaje
+  );
+
+}
+
+return res.sendStatus(200);
