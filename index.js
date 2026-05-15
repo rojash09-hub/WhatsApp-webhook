@@ -42,10 +42,14 @@ app.get("/webhook", (req, res) => {
     req.query["hub.mode"];
 
   const token =
-    req.query["hub.verify_token"];
+    req.query[
+      "hub.verify_token"
+    ];
 
   const challenge =
-    req.query["hub.challenge"];
+    req.query[
+      "hub.challenge"
+    ];
 
   if (
     mode === "subscribe" &&
@@ -101,7 +105,6 @@ function decryptFlowData(body) {
     aesKey.length
   );
 
-  // últimos 16 bytes = tag
   const authTag =
     encryptedData.slice(-16);
 
@@ -192,7 +195,6 @@ function encryptResponse(
       "base64"
     );
 
-  // padding correcto
   while (
     base64.length % 4 !== 0
   ) {
@@ -249,20 +251,16 @@ app.post(
           iv
         );
 
+      // 👇 FIX FINAL
       return res
         .status(200)
-        .set(
-          "Content-Type",
-          "application/json"
-        )
-        .send(
-          JSON.stringify({
+        .type("json")
+        .send({
 
-            encrypted_response:
-              encryptedResponse
+          encrypted_response:
+            encryptedResponse
 
-          })
-        );
+        });
 
     } catch (
       error
