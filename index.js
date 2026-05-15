@@ -758,6 +758,42 @@ app.post(
         value =
           upper(value);
 
+        // 📅 HOY
+        if (
+          key === "fecha" &&
+          value === "HOY"
+        ) {
+
+          value =
+            new Date()
+              .toLocaleDateString(
+                "es-PE"
+              );
+
+        }
+
+        // ⏰ AHORA MISMO
+        if (
+          key === "hora" &&
+          value ===
+            "AHORA MISMO"
+        ) {
+
+          value =
+            new Date()
+              .toLocaleTimeString(
+                "es-PE",
+                {
+                  hour:
+                    "2-digit",
+
+                  minute:
+                    "2-digit"
+                }
+              );
+
+        }
+
         if (
           key in
           registroBase
@@ -792,7 +828,7 @@ app.post(
       ) {
 
         mensaje +=
-          `👤 Nombre: ${registroBase.nombre}\n`;
+          `👤 NOMBRE: ${registroBase.nombre}\n`;
 
       }
 
@@ -801,7 +837,7 @@ app.post(
       ) {
 
         mensaje +=
-          `📍 Inicio: ${registroBase.inicio}\n`;
+          `📍 INICIO: ${registroBase.inicio}\n`;
 
       }
 
@@ -810,7 +846,7 @@ app.post(
       ) {
 
         mensaje +=
-          `🏁 Destino: ${registroBase.destino}\n`;
+          `🏁 DESTINO: ${registroBase.destino}\n`;
 
       }
 
@@ -819,7 +855,7 @@ app.post(
       ) {
 
         mensaje +=
-          `📅 Fecha: ${registroBase.fecha}\n`;
+          `📅 FECHA: ${registroBase.fecha}\n`;
 
       }
 
@@ -828,7 +864,7 @@ app.post(
       ) {
 
         mensaje +=
-          `⏰ Hora: ${registroBase.hora}\n`;
+          `⏰ HORA: ${registroBase.hora}\n`;
 
       }
 
@@ -837,7 +873,7 @@ app.post(
       ) {
 
         mensaje +=
-          `✅ Autoriza: ${registroBase.autoriza}\n`;
+          `✅ AUTORIZA: ${registroBase.autoriza}\n`;
 
       }
 
@@ -845,13 +881,22 @@ app.post(
         const key in extras
       ) {
 
+        // 🚫 IGNORAR FLOW TOKEN
+        if (
+          key === "flow_token"
+        ) {
+
+          continue;
+
+        }
+
         mensaje +=
           `🔹 ${key.toUpperCase()}: ${extras[key]}\n`;
 
       }
 
       mensaje +=
-        `\n📌 Registro: ${registroBase.fecha_registro}`;
+        `\n📌 REGISTRO: ${registroBase.fecha_registro}`;
 
       // 📲 ENVÍOS
       await enviarMensaje(
