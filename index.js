@@ -787,11 +787,13 @@ app.post(
 
         }
 
-        // ⏰ AHORA MISMO
+        // ⏰ AHORA / AHORA MISMO
         if (
           key === "hora" &&
-          value ===
-            "AHORA MISMO"
+          (
+            value === "AHORA" ||
+            value === "AHORA MISMO"
+          )
         ) {
 
           value =
@@ -803,7 +805,10 @@ app.post(
                     "2-digit",
 
                   minute:
-                    "2-digit"
+                    "2-digit",
+
+                  hour12:
+                    false
                 }
               );
 
