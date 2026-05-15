@@ -448,9 +448,14 @@ async function guardarEnSheet(
         registroBase.nombre,
         registroBase.inicio,
         registroBase.destino,
+
+        "", // vacío 1
+        "", // vacío 2
+
         JSON.stringify(
           extras
         ),
+
         registroBase.fecha_registro
       ]
     ];
@@ -464,7 +469,7 @@ async function guardarEnSheet(
           sheetId,
 
         range:
-          "Data!A:I",
+          "Data!A:K",
 
         valueInputOption:
           "USER_ENTERED",
