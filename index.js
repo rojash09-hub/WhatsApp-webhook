@@ -340,7 +340,153 @@ function encryptResponse(
 
 }
 
-// 📲 ENVIAR FLOW async function enviarFlow( numero, tipo ) { try { const cfg = CONFIG[tipo]; if (!cfg) { return; } // ✅ TEMPLATE SEGÚN EMPRESA let templateName = ""; if (tipo === "EXALMAR") { templateName = "exal_flota"; } else if (tipo === "CENTINELA") { templateName = "centinela_flota"; } else if (tipo === "PLANTA_CALLAO") { templateName = "planta_callao"; } else if (tipo === "GLOBAL") { templateName = "global"; } // ✅ ENVIAR TEMPLATE await axios.post( `https://graph.facebook.com/v20.0/${PHONE_NUMBER_ID}/messages`, { messaging_product: "whatsapp", to: numero, type: "template", template: { name: templateName, language: { code: "es_PE" } } }, { headers: { Authorization: `Bearer ${WHATSAPP_TOKEN}`, "Content-Type": "application/json" } } ); } catch (error) { console.error( "❌ ERROR FLOW:", error.response?.data || error ); } }
+// 📲 ENVIAR MENSAJE
+async function enviarMensaje(
+  numero,
+  mensaje
+) {
+
+  try {
+
+    await axios.post(
+      `https://graph.facebook.com/v20.0/${PHONE_NUMBER_ID}/messages`,
+      {
+        messaging_product:
+          "whatsapp",
+
+        to:
+          numero,
+
+        type:
+          "text",
+
+        text: {
+          body:
+            mensaje
+        }
+      },
+      {
+        headers: {
+
+          Authorization:
+            `Bearer ${WHATSAPP_TOKEN}`,
+
+          "Content-Type":
+            "application/json"
+
+        }
+      }
+    );
+
+  } catch (error) {
+
+    console.error(
+      "❌ ERROR MENSAJE:",
+      error.response?.data || error
+    );
+
+  }
+
+}
+
+// 📲 ENVIAR FLOW
+async function enviarFlow(
+  numero,
+  tipo
+) {
+
+  try {
+
+    const cfg =
+      CONFIG[tipo];
+
+    if (!cfg) {
+
+      return;
+
+    }
+
+    let templateName = "";
+
+    if (tipo === "EXALMAR") {
+
+      templateName =
+        "exal_flota";
+
+    }
+
+    else if (tipo === "CENTINELA") {
+
+      templateName =
+        "centinela_flota";
+
+    }
+
+    else if (tipo === "PLANTA_CALLAO") {
+
+      templateName =
+        "planta_callao";
+
+    }
+
+    else if (tipo === "GLOBAL") {
+
+      templateName =
+        "global";
+
+    }
+
+    await axios.post(
+      `https://graph.facebook.com/v20.0/${PHONE_NUMBER_ID}/messages`,
+      {
+
+        messaging_product:
+          "whatsapp",
+
+        to:
+          numero,
+
+        type:
+          "template",
+
+        template: {
+
+          name:
+            templateName,
+
+          language: {
+
+            code:
+              "es_PE"
+
+          }
+
+        }
+
+      },
+      {
+        headers: {
+
+          Authorization:
+            `Bearer ${WHATSAPP_TOKEN}`,
+
+          "Content-Type":
+            "application/json"
+
+        }
+      }
+    );
+
+  } catch (error) {
+
+    console.error(
+      "❌ ERROR FLOW:",
+      error.response?.data || error
+    );
+
+  }
+
+}
 
 // 🔢 CORRELATIVO
 async function generarCorrelativo(
@@ -418,7 +564,6 @@ async function guardarEnSheet(
     let values = [];
     let range = "";
 
-    // ✅ EXALMAR
     if (tipo === "EXALMAR") {
 
       values = [
@@ -443,7 +588,6 @@ async function guardarEnSheet(
 
     }
 
-    // ✅ CENTINELA
     else if (tipo === "CENTINELA") {
 
       values = [
@@ -469,7 +613,6 @@ async function guardarEnSheet(
 
     }
 
-    // ✅ GLOBAL
     else if (tipo === "GLOBAL") {
 
       values = [
@@ -494,7 +637,6 @@ async function guardarEnSheet(
 
     }
 
-    // ✅ PLANTA CALLAO
     else if (tipo === "PLANTA_CALLAO") {
 
       values = [
@@ -564,7 +706,6 @@ app.post(
 
     try {
 
-      // 🔐 FLOW ENCRYPTED
       if (
         req.body
           .encrypted_aes_key
@@ -691,249 +832,7 @@ app.post(
 
           }
 
-          if (
-            numeroRemitente ===
-            "51961507276" &&
-            texto.startsWith(
-              cfg.command + " "
-            )
-          ) {
-
-            const partes =
-              texto.split(" ");
-
-            let numeroDestino =
-              partes[1];
-
-            if (
-              !numeroDestino.startsWith(
-                "51"
-              )
-            ) {
-
-              numeroDestino =
-                "51" +
-                numeroDestino;
-
-            }
-
-            await enviarFlow(
-              numeroDestino,
-              key
-            );
-
-            await enviarMensaje(
-              numeroRemitente,
-              `✅ FORMULARIO ENVIADO A ${numeroDestino}`
-            );
-
-            return res.sendStatus(200);
-
-          }
-
         }
-
-      }
-
-      // 🔥 FORMULARIO
-      let form =
-        entry
-          ?.messages?.[0]
-          ?.interactive
-          ?.nfm_reply
-          ?.response_json;
-
-      if (!form) {
-
-        return res.sendStatus(200);
-
-      }
-
-      if (
-        typeof form === "string"
-      ) {
-
-        form =
-          JSON.parse(form);
-
-      }
-
-      const tipo =
-        form.tipo_flujo ||
-        "EXALMAR";
-
-      const cfg =
-        CONFIG[tipo];
-
-      if (!cfg) {
-
-        return res.sendStatus(200);
-
-      }
-
-      const registroBase = {
-
-        titulo:
-          cfg.title,
-
-        fecha_registro:
-          fechaPeru()
-            .toLocaleString(
-              "es-PE"
-            )
-
-      };
-
-      const extras = {};
-
-      for (const key in form) {
-
-        if (
-          key === "flow_token" ||
-          key === "tipo_flujo"
-        ) {
-
-          continue;
-
-        }
-
-        let value =
-          form[key];
-
-        if (
-          value === "OTROS" &&
-          form[
-            `${key}_otro`
-          ]
-        ) {
-
-          value =
-            form[
-              `${key}_otro`
-            ];
-
-        }
-
-        value =
-          upper(value);
-
-        // ✅ FECHA AUTOMÁTICA
-        if (
-          key === "fecha" &&
-          (
-            value === "HOY" ||
-            value === "AHORA"
-          )
-        ) {
-
-          value =
-            obtenerFechaPeru();
-
-        }
-
-        // ✅ HORA AUTOMÁTICA
-        if (
-          key === "hora" &&
-          (
-            value === "AHORA" ||
-            value === "AHORA MISMO"
-          )
-        ) {
-
-          value =
-            obtenerHoraPeru();
-
-        }
-
-        registroBase[key] =
-          value;
-
-        extras[key] =
-          value;
-
-      }
-
-      delete extras.flow_token;
-      delete extras.tipo_flujo;
-
-      const correlativo =
-        await guardarEnSheet(
-          tipo,
-          registroBase,
-          extras
-        );
-
-      let mensaje =
-        `🚖 ${registroBase.titulo}\n\n`;
-
-      mensaje +=
-        `🆔 CODIGO: ${correlativo}\n\n`;
-
-      if (registroBase.empresa) {
-        mensaje += `🏢 EMPRESA: ${registroBase.empresa}\n`;
-      }
-
-      if (registroBase.solicitante) {
-        mensaje += `👤 SOLICITANTE: ${registroBase.solicitante}\n`;
-      }
-
-      if (registroBase.autoriza) {
-        mensaje += `👤 AUTORIZA: ${registroBase.autoriza}\n`;
-      }
-
-      if (registroBase.tipo_unidad) {
-        mensaje += `🚘 TIPO UNIDAD: ${registroBase.tipo_unidad}\n`;
-      }
-
-      if (registroBase.usuario) {
-        mensaje += `🙍 USUARIO: ${registroBase.usuario}\n`;
-      }
-
-      if (registroBase.nombre) {
-        mensaje += `🙍 NOMBRE: ${registroBase.nombre}\n`;
-      }
-
-      if (registroBase.inicio) {
-        mensaje += `📍 INICIO: ${registroBase.inicio}\n`;
-      }
-
-      if (registroBase.destino) {
-        mensaje += `🏁 DESTINO: ${registroBase.destino}\n`;
-      }
-
-      if (registroBase.fecha) {
-        mensaje += `📅 FECHA: ${registroBase.fecha}\n`;
-      }
-
-      if (registroBase.hora) {
-        mensaje += `⏰ HORA: ${registroBase.hora}\n`;
-      }
-
-      if (registroBase.observaciones) {
-        mensaje += `📝 OBSERVACIONES: ${registroBase.observaciones}\n`;
-      }
-
-      mensaje +=
-        `\n📌 REGISTRO: ${registroBase.fecha_registro}`;
-
-      await enviarMensaje(
-        "51961507276",
-        mensaje
-      );
-
-      await enviarMensaje(
-        "51986767350",
-        mensaje
-      );
-
-      if (
-        numeroRemitente
-      ) {
-
-        await enviarMensaje(
-          numeroRemitente,
-          mensaje
-        );
 
       }
 
