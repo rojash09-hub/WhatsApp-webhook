@@ -411,7 +411,7 @@ async function enviarFlow(
     if (tipo === "EXALMAR") {
 
       templateName =
-        "exalmar_flota";
+        "exal_flota";
 
     }
 
@@ -436,7 +436,7 @@ async function enviarFlow(
 
     }
 
-    // ✅ ENVÍO TEMPLATE
+    // ✅ TEMPLATE FLOW
     await axios.post(
       `https://graph.facebook.com/v20.0/${PHONE_NUMBER_ID}/messages`,
       {
@@ -459,7 +459,29 @@ async function enviarFlow(
             code:
               "es_PE"
 
-          }
+          },
+
+          components: [
+            {
+
+              type:
+                "button",
+
+              sub_type:
+                "flow",
+
+              index:
+                "0",
+
+              parameters: [
+                {
+                  type:
+                    "action"
+                }
+              ]
+
+            }
+          ]
 
         }
 
@@ -564,6 +586,7 @@ async function guardarEnSheet(
     let values = [];
     let range = "";
 
+    // ✅ EXALMAR
     if (tipo === "EXALMAR") {
 
       values = [[
@@ -586,6 +609,7 @@ async function guardarEnSheet(
 
     }
 
+    // ✅ CENTINELA
     else if (tipo === "CENTINELA") {
 
       values = [[
@@ -609,6 +633,7 @@ async function guardarEnSheet(
 
     }
 
+    // ✅ GLOBAL
     else if (tipo === "GLOBAL") {
 
       values = [[
@@ -631,6 +656,7 @@ async function guardarEnSheet(
 
     }
 
+    // ✅ PLANTA CALLAO
     else if (tipo === "PLANTA_CALLAO") {
 
       values = [[
