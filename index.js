@@ -703,7 +703,6 @@ app.post(
           const cfg =
             CONFIG[key];
 
-          // SIMPLE
           if (
             texto ===
             cfg.command
@@ -719,6 +718,163 @@ app.post(
           }
 
         }
+
+      }
+
+      // 🔥 FORMULARIO
+      let form =
+        entry
+          ?.messages?.[0]
+          ?.interactive
+          ?.nfm_reply
+          ?.response_json;
+
+      if (!form) {
+
+        return res.sendStatus(200);
+
+      }
+
+      if (
+        typeof form === "string"
+      ) {
+
+        form =
+          JSON.parse(form);
+
+      }
+
+      const tipo =
+        form.tipo_flujo ||
+        "EXALMAR";
+
+      const cfg =
+        CONFIG[tipo];
+
+      if (!cfg) {
+
+        return res.sendStatus(200);
+
+      }
+
+      const registroBase = {
+
+        titulo:
+          cfg.title,
+
+        fecha_registro:
+          fechaPeru()
+            .toLocaleString(
+              "es-PE"
+            )
+
+      };
+
+      const extras = {};
+
+      for (const key in form) {
+
+        if (
+          key === "flow_token" ||
+          key === "tipo_flujo"
+        ) {
+
+          continue;
+
+        }
+
+        let value =
+          form[key];
+
+        value =
+          upper(value);
+
+        registroBase[key] =
+          value;
+
+        extras[key] =
+          value;
+
+      }
+
+      const correlativo =
+        await guardarEnSheet(
+          tipo,
+          registroBase,
+          extras
+        );
+
+      let mensaje =
+        `🚖 ${registroBase.titulo}\n\n`;
+
+      mensaje +=
+        `🆔 CODIGO: ${correlativo}\n\n`;
+
+      if (registroBase.empresa) {
+        mensaje += `🏢 EMPRESA: ${registroBase.empresa}\n`;
+      }
+
+      if (registroBase.solicitante) {
+        mensaje += `👤 SOLICITANTE: ${registroBase.solicitante}\n`;
+      }
+
+      if (registroBase.autoriza) {
+        mensaje += `👤 AUTORIZA: ${registroBase.autoriza}\n`;
+      }
+
+      if (registroBase.tipo_unidad) {
+        mensaje += `🚘 TIPO UNIDAD: ${registroBase.tipo_unidad}\n`;
+      }
+
+      if (registroBase.usuario) {
+        mensaje += `🙍 USUARIO: ${registroBase.usuario}\n`;
+      }
+
+      if (registroBase.nombre) {
+        mensaje += `🙍 NOMBRE: ${registroBase.nombre}\n`;
+      }
+
+      if (registroBase.inicio) {
+        mensaje += `📍 INICIO: ${registroBase.inicio}\n`;
+      }
+
+      if (registroBase.destino) {
+        mensaje += `🏁 DESTINO: ${registroBase.destino}\n`;
+      }
+
+      if (registroBase.fecha) {
+        mensaje += `📅 FECHA: ${registroBase.fecha}\n`;
+      }
+
+      if (registroBase.hora) {
+        mensaje += `⏰ HORA: ${registroBase.hora}\n`;
+      }
+
+      if (registroBase.observaciones) {
+        mensaje += `📝 OBSERVACIONES: ${registroBase.observaciones}\n`;
+      }
+
+      mensaje +=
+        `\n📌 REGISTRO: ${registroBase.fecha_registro}`;
+
+      await enviarMensaje(
+        "51961507276",
+        mensaje
+      );
+
+      await enviarMensaje(
+        "51986767350",
+        mensaje
+      );
+
+      if (
+        numeroRemitente
+      ) {
+
+        await enviarMensaje(
+          numeroRemitente,
+          mensaje
+        );
 
       }
 
