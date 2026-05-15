@@ -40,6 +40,21 @@ console.log(
   PHONE_NUMBER_ID
 );
 
+// 🇵🇪 FECHA/HORA PERÚ
+function fechaPeru() {
+
+  return new Date(
+    new Date().toLocaleString(
+      "en-US",
+      {
+        timeZone:
+          "America/Lima"
+      }
+    )
+  );
+
+}
+
 // 📊 SHEETS
 const SHEETS = {
   EXALMAR:
@@ -727,7 +742,7 @@ app.post(
           "",
 
         fecha_registro:
-          new Date()
+          fechaPeru()
             .toLocaleString(
               "es-PE"
             )
@@ -765,7 +780,7 @@ app.post(
         ) {
 
           value =
-            new Date()
+            fechaPeru()
               .toLocaleDateString(
                 "es-PE"
               );
@@ -780,7 +795,7 @@ app.post(
         ) {
 
           value =
-            new Date()
+            fechaPeru()
               .toLocaleTimeString(
                 "es-PE",
                 {
@@ -881,7 +896,6 @@ app.post(
         const key in extras
       ) {
 
-        // 🚫 IGNORAR FLOW TOKEN
         if (
           key === "flow_token"
         ) {
