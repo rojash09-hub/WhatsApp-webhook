@@ -1,14 +1,15 @@
 const express = require("express");
-const bodyParser = require("body-parser");
 const crypto = require("crypto");
 
 const app = express();
 
 app.use(
-  bodyParser.json({
+  express.json({
     limit: "10mb"
   })
 );
+
+app.disable("x-powered-by");
 
 const VERIFY_TOKEN =
   process.env.VERIFY_TOKEN;
@@ -69,6 +70,18 @@ function decryptFlowData(
   body
 ) {
 
+  if (
+    !body.encrypted_aes_key ||
+    !body.initial_vector ||
+    !body.encrypted_flow_data
+  ) {
+
+    throw new Error(
+      "Invalid encrypted payload"
+    );
+
+  }
+
   const encryptedAesKey =
     Buffer.from(
       body.encrypted_aes_key,
@@ -87,6 +100,7 @@ function decryptFlowData(
       "base64"
     );
 
+  // DESCIFRAR AES KEY
   const aesKey =
     crypto.privateDecrypt(
       {
@@ -109,6 +123,7 @@ function decryptFlowData(
     aesKey.length
   );
 
+  // EXTRAER AUTHTAG
   const authTag =
     encryptedData.slice(
       -16
@@ -120,6 +135,7 @@ function decryptFlowData(
       -16
     );
 
+  // DESCIFRAR DATA
   const decipher =
     crypto.createDecipheriv(
       "aes-128-gcm",
@@ -155,18 +171,44 @@ function decryptFlowData(
 
 }
 
-// ENCRYPT
+// META REQUIERE IV INVERTIDO
+function flipIv(iv) {
+
+  const flipped =
+    Buffer.alloc(iv.length);
+
+  for (
+    let i = 0;
+    i < iv.length;
+    i++
+  ) {
+
+    flipped[i] =
+      ~iv[i];
+
+  }
+
+  return flipped;
+
+}
+
+// ENCRYPT RESPONSE
 function encryptResponse(
   response,
   aesKey,
   iv
 ) {
 
+  // IMPORTANTE:
+  // Meta requiere IV invertido
+  const flippedIv =
+    flipIv(iv);
+
   const cipher =
     crypto.createCipheriv(
       "aes-128-gcm",
       aesKey,
-      iv
+      flippedIv
     );
 
   const payload =
@@ -188,14 +230,18 @@ function encryptResponse(
   const authTag =
     cipher.getAuthTag();
 
-  return Buffer
-    .concat([
+  // CONCATENAR:
+  // encrypted + authTag
+  const finalBuffer =
+    Buffer.concat([
       encrypted,
       authTag
-    ])
-    .toString(
-      "base64"
-    );
+    ]);
+
+  // DEVOLVER SOLO BASE64
+  return finalBuffer.toString(
+    "base64"
+  );
 
 }
 
@@ -224,14 +270,22 @@ app.post(
 
       console.log(
         "✅ DESCIFRADO:",
-        data
+        JSON.stringify(
+          data,
+          null,
+          2
+        )
       );
 
-      // ping de Meta
+      // PING META
       if (
         data.action ===
         "ping"
       ) {
+
+        console.log(
+          "🏓 PING RECIBIDO"
+        );
 
         const pingResponse = {
 
@@ -251,7 +305,6 @@ app.post(
             iv
           );
 
-        // 👇 Meta exige SOLO BASE64
         return res
           .status(200)
           .set(
@@ -264,7 +317,7 @@ app.post(
 
       }
 
-      // default
+      // RESPUESTA DEFAULT
       const response = {
 
         screen:
@@ -320,7 +373,7 @@ app.listen(
   () => {
 
     console.log(
-      "🚀 Servidor:",
+      "🚀 Servidor iniciado en puerto:",
       PORT
     );
 
