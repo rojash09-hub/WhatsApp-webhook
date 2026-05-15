@@ -30,7 +30,7 @@ const PRIVATE_KEY =
         .replace(/\r/g, "")
     : null;
 
-// 🇵🇪 FECHA PERÚ
+// 🇵🇪 FECHA Y HORA PERÚ
 function fechaPeru() {
 
   return new Date(
@@ -42,6 +42,36 @@ function fechaPeru() {
       }
     )
   );
+
+}
+
+// 📅 FECHA ACTUAL PERÚ
+function obtenerFechaPeru() {
+
+  return fechaPeru()
+    .toLocaleDateString(
+      "es-PE"
+    );
+
+}
+
+// ⏰ HORA ACTUAL PERÚ
+function obtenerHoraPeru() {
+
+  return fechaPeru()
+    .toLocaleTimeString(
+      "es-PE",
+      {
+        hour:
+          "2-digit",
+
+        minute:
+          "2-digit",
+
+        hour12:
+          false
+      }
+    );
 
 }
 
@@ -522,8 +552,33 @@ async function guardarEnSheet(
     let values = [];
     let range = "";
 
+    // ✅ EXALMAR
+    if (tipo === "EXALMAR") {
+
+      values = [
+        [
+          registroBase.titulo || "",
+          correlativo || "",
+          registroBase.fecha || "",
+          registroBase.hora || "",
+          registroBase.autoriza || "",
+          registroBase.nombre || "",
+          registroBase.inicio || "",
+          registroBase.destino || "",
+          "",
+          "",
+          registroBase.observaciones || "",
+          JSON.stringify(extras),
+          registroBase.fecha_registro || ""
+        ]
+      ];
+
+      range = "Data!A:M";
+
+    }
+
     // ✅ CENTINELA
-    if (tipo === "CENTINELA") {
+    else if (tipo === "CENTINELA") {
 
       values = [
         [
@@ -545,31 +600,6 @@ async function guardarEnSheet(
       ];
 
       range = "Data!A:N";
-
-    }
-
-    // ✅ EXALMAR
-    else if (tipo === "EXALMAR") {
-
-      values = [
-        [
-          registroBase.titulo || "",
-          correlativo || "",
-          registroBase.fecha || "",
-          registroBase.hora || "",
-          registroBase.autoriza || "",
-          registroBase.nombre || "",
-          registroBase.inicio || "",
-          registroBase.destino || "",
-          "",
-          "",
-          registroBase.observaciones || "",
-          JSON.stringify(extras),
-          registroBase.fecha_registro || ""
-        ]
-      ];
-
-      range = "Data!A:M";
 
     }
 
@@ -668,6 +698,84 @@ app.post(
 
     try {
 
+      // 🔐 FLOW ENCRYPTED
+      if (
+        req.body
+          .encrypted_aes_key
+      ) {
+
+        const {
+          data,
+          aesKey,
+          iv
+        } =
+          decryptFlowData(
+            req.body
+          );
+
+        if (
+          data.action ===
+          "ping"
+        ) {
+
+          const pingResponse = {
+
+            data: {
+
+              status:
+                "active"
+
+            }
+
+          };
+
+          const encryptedResponse =
+            encryptResponse(
+              pingResponse,
+              aesKey,
+              iv
+            );
+
+          return res
+            .status(200)
+            .set(
+              "Content-Type",
+              "text/plain"
+            )
+            .send(
+              encryptedResponse
+            );
+
+        }
+
+        const response = {
+
+          screen:
+            "SUCCESS",
+
+          data: {}
+
+        };
+
+        const encryptedResponse =
+          encryptResponse(
+            response,
+            aesKey,
+            iv
+          );
+
+        return res
+          .status(200)
+          .set(
+            "Content-Type",
+            "text/plain"
+          )
+          .send(
+            encryptedResponse
+          );
+
+      }
+
       const entry =
         req.body
           ?.entry?.[0]
@@ -703,6 +811,7 @@ app.post(
           const cfg =
             CONFIG[key];
 
+          // SIMPLE
           if (
             texto ===
             cfg.command
@@ -711,6 +820,47 @@ app.post(
             await enviarFlow(
               numeroRemitente,
               key
+            );
+
+            return res.sendStatus(200);
+
+          }
+
+          // ADMIN
+          if (
+            numeroRemitente ===
+            "51961507276" &&
+            texto.startsWith(
+              cfg.command + " "
+            )
+          ) {
+
+            const partes =
+              texto.split(" ");
+
+            let numeroDestino =
+              partes[1];
+
+            if (
+              !numeroDestino.startsWith(
+                "51"
+              )
+            ) {
+
+              numeroDestino =
+                "51" +
+                numeroDestino;
+
+            }
+
+            await enviarFlow(
+              numeroDestino,
+              key
+            );
+
+            await enviarMensaje(
+              numeroRemitente,
+              `✅ FORMULARIO ENVIADO A ${numeroDestino}`
             );
 
             return res.sendStatus(200);
@@ -786,17 +936,34 @@ app.post(
         let value =
           form[key];
 
-        // ✅ FECHA AUTOMÁTICA
         if (
-          key === "fecha" &&
-          upper(value) === "HOY"
+          value === "OTROS" &&
+          form[
+            `${key}_otro`
+          ]
         ) {
 
           value =
-            fechaPeru()
-              .toLocaleDateString(
-                "es-PE"
-              );
+            form[
+              `${key}_otro`
+            ];
+
+        }
+
+        value =
+          upper(value);
+
+        // ✅ FECHA AUTOMÁTICA
+        if (
+          key === "fecha" &&
+          (
+            value === "HOY" ||
+            value === "AHORA"
+          )
+        ) {
+
+          value =
+            obtenerFechaPeru();
 
         }
 
@@ -804,29 +971,15 @@ app.post(
         if (
           key === "hora" &&
           (
-            upper(value) === "AHORA" ||
-            upper(value) === "AHORA MISMO"
+            value === "AHORA" ||
+            value === "AHORA MISMO"
           )
         ) {
 
           value =
-            fechaPeru()
-              .toLocaleTimeString(
-                "es-PE",
-                {
-                  hour:
-                    "2-digit",
-                  minute:
-                    "2-digit",
-                  hour12:
-                    false
-                }
-              );
+            obtenerHoraPeru();
 
         }
-
-        value =
-          upper(value);
 
         registroBase[key] =
           value;
@@ -835,6 +988,9 @@ app.post(
           value;
 
       }
+
+      delete extras.flow_token;
+      delete extras.tipo_flujo;
 
       const correlativo =
         await guardarEnSheet(
