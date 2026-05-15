@@ -1,6 +1,8 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const crypto = require("crypto");
+const axios = require("axios");
+const { google } = require("googleapis");
 
 const app = express();
 
@@ -10,8 +12,15 @@ app.use(
   })
 );
 
+// 🔐 VARIABLES
 const VERIFY_TOKEN =
   process.env.VERIFY_TOKEN;
+
+const WHATSAPP_TOKEN =
+  process.env.WHATSAPP_TOKEN;
+
+const PHONE_NUMBER_ID =
+  process.env.PHONE_NUMBER_ID;
 
 const PRIVATE_KEY =
   process.env.PRIVATE_KEY_ACCOUNT
@@ -26,7 +35,25 @@ console.log(
   PRIVATE_KEY ? "OK" : "NULL"
 );
 
-// HEALTH
+// 📊 SHEETS
+const SHEETS = {
+  EXALMAR:
+    "1LM9JMK8yySI9CVCe785bDdsi-j1fFaJPpvIE19zDkiw",
+
+  CLIENTE_2:
+    "SHEET_ID_2",
+
+  CLIENTE_3:
+    "SHEET_ID_3"
+};
+
+// 🔠 MAYÚSCULAS
+const upper = (text) =>
+  text
+    ? text.toString().toUpperCase()
+    : "";
+
+// ❤️ HEALTH
 app.get("/", (req, res) => {
 
   return res
@@ -37,7 +64,7 @@ app.get("/", (req, res) => {
 
 });
 
-// WEBHOOK VERIFY
+// ✅ VERIFY WEBHOOK
 app.get("/webhook", (req, res) => {
 
   const mode =
@@ -54,6 +81,10 @@ app.get("/webhook", (req, res) => {
     token === VERIFY_TOKEN
   ) {
 
+    console.log(
+      "✅ Webhook verificado"
+    );
+
     return res
       .status(200)
       .send(challenge);
@@ -64,7 +95,7 @@ app.get("/webhook", (req, res) => {
 
 });
 
-// DECRYPT
+// 🔓 DESCIFRAR FLOW
 function decryptFlowData(
   body
 ) {
@@ -87,7 +118,6 @@ function decryptFlowData(
       "base64"
     );
 
-  // DESCIFRAR AES KEY
   const aesKey =
     crypto.privateDecrypt(
       {
@@ -105,12 +135,6 @@ function decryptFlowData(
       encryptedAesKey
     );
 
-  console.log(
-    "AES KEY LENGTH:",
-    aesKey.length
-  );
-
-  // EXTRAER AUTH TAG
   const authTag =
     encryptedData.slice(
       -16
@@ -122,7 +146,6 @@ function decryptFlowData(
       -16
     );
 
-  // DESCIFRAR DATA
   const decipher =
     crypto.createDecipheriv(
       "aes-128-gcm",
@@ -158,7 +181,7 @@ function decryptFlowData(
 
 }
 
-// META REQUIERE IV INVERTIDO
+// 🔁 INVERTIR IV
 function flipIv(iv) {
 
   const flipped =
@@ -170,7 +193,6 @@ function flipIv(iv) {
     i++
   ) {
 
-    // invertir byte
     flipped[i] =
       iv[i] ^ 0xff;
 
@@ -180,14 +202,13 @@ function flipIv(iv) {
 
 }
 
-// ENCRYPT RESPONSE
+// 🔐 CIFRAR RESPUESTA
 function encryptResponse(
   response,
   aesKey,
   iv
 ) {
 
-  // usar IV invertido
   const flippedIv =
     flipIv(iv);
 
@@ -217,22 +238,231 @@ function encryptResponse(
   const authTag =
     cipher.getAuthTag();
 
-  // CONCATENAR:
-  // encrypted + authTag
-  const finalBuffer =
-    Buffer.concat([
+  return Buffer
+    .concat([
       encrypted,
       authTag
-    ]);
-
-  // DEVOLVER BASE64
-  return finalBuffer.toString(
-    "base64"
-  );
+    ])
+    .toString(
+      "base64"
+    );
 
 }
 
-// FLOW WEBHOOK
+// 📲 ENVIAR MENSAJE
+async function enviarMensaje(
+  numero,
+  mensaje
+) {
+
+  try {
+
+    await axios.post(
+      `https://graph.facebook.com/v18.0/${PHONE_NUMBER_ID}/messages`,
+      {
+        messaging_product:
+          "whatsapp",
+
+        to:
+          numero,
+
+        type:
+          "text",
+
+        text: {
+          body:
+            mensaje
+        }
+      },
+      {
+        headers: {
+
+          Authorization:
+            `Bearer ${WHATSAPP_TOKEN}`,
+
+          "Content-Type":
+            "application/json"
+
+        }
+      }
+    );
+
+  } catch (error) {
+
+    console.error(
+      "❌ Error enviando mensaje:",
+      error.response?.data || error
+    );
+
+  }
+
+}
+
+// 📲 ENVIAR FLOW
+async function enviarFlow(
+  numero
+) {
+
+  try {
+
+    await axios.post(
+      `https://graph.facebook.com/v18.0/${PHONE_NUMBER_ID}/messages`,
+      {
+        messaging_product:
+          "whatsapp",
+
+        to:
+          numero,
+
+        type:
+          "interactive",
+
+        interactive: {
+
+          type:
+            "flow",
+
+          body: {
+
+            text:
+              "🚖 EXALMAR FLOTA\nSolicita tu taxi aquí:"
+
+          },
+
+          action: {
+
+            name:
+              "flow",
+
+            parameters: {
+
+              flow_id:
+                "1487962506700406",
+
+              flow_cta:
+                "Reservar Taxi"
+
+            }
+
+          }
+
+        }
+      },
+      {
+        headers: {
+
+          Authorization:
+            `Bearer ${WHATSAPP_TOKEN}`,
+
+          "Content-Type":
+            "application/json"
+
+        }
+      }
+    );
+
+    console.log(
+      "✅ Flow enviado a",
+      numero
+    );
+
+  } catch (error) {
+
+    console.error(
+      "❌ Error Flow:",
+      error.response?.data || error
+    );
+
+  }
+
+}
+
+// 📊 GUARDAR SHEETS
+async function guardarEnSheet(
+  cliente,
+  registroBase,
+  extras
+) {
+
+  try {
+
+    const auth =
+      new google.auth.GoogleAuth({
+        credentials:
+          JSON.parse(
+            process.env
+              .GOOGLE_CREDENTIALS
+          ),
+
+        scopes: [
+          "https://www.googleapis.com/auth/spreadsheets"
+        ]
+      });
+
+    const sheets =
+      google.sheets({
+        version:
+          "v4",
+
+        auth
+      });
+
+    const sheetId =
+      SHEETS[cliente] ||
+      SHEETS["EXALMAR"];
+
+    const values = [
+      [
+        registroBase.titulo,
+        registroBase.fecha,
+        registroBase.hora,
+        registroBase.autoriza,
+        registroBase.nombre,
+        registroBase.inicio,
+        registroBase.destino,
+        JSON.stringify(
+          extras
+        ),
+        registroBase.fecha_registro
+      ]
+    ];
+
+    await sheets
+      .spreadsheets
+      .values
+      .append({
+
+        spreadsheetId:
+          sheetId,
+
+        range:
+          "Data!A:I",
+
+        valueInputOption:
+          "USER_ENTERED",
+
+        requestBody: {
+          values
+        }
+
+      });
+
+    console.log(
+      `✅ Guardado en ${cliente}`
+    );
+
+  } catch (error) {
+
+    console.error(
+      "❌ Error Sheets:",
+      error
+    );
+
+  }
+
+}
+
+// 🚀 WEBHOOK
 app.post(
   "/webhook",
   async (
@@ -242,49 +472,86 @@ app.post(
 
     try {
 
-      console.log(
-        "🔐 Flow cifrado recibido"
-      );
+      // =====================================
+      // 🔐 FLOW ENCRYPTED
+      // =====================================
 
-      const {
-        data,
-        aesKey,
-        iv
-      } =
-        decryptFlowData(
-          req.body
-        );
-
-      console.log(
-        "✅ DESCIFRADO:",
-        data
-      );
-
-      // PING META
       if (
-        data.action ===
-        "ping"
+        req.body
+          .encrypted_aes_key
       ) {
 
-        const pingResponse = {
+        console.log(
+          "🔐 Flow cifrado recibido"
+        );
 
-          data: {
+        const {
+          data,
+          aesKey,
+          iv
+        } =
+          decryptFlowData(
+            req.body
+          );
 
-            status:
-              "active"
+        console.log(
+          "✅ DESCIFRADO:",
+          data
+        );
 
-          }
+        // 🏓 PING META
+        if (
+          data.action ===
+          "ping"
+        ) {
+
+          const pingResponse = {
+
+            data: {
+
+              status:
+                "active"
+
+            }
+
+          };
+
+          const encryptedResponse =
+            encryptResponse(
+              pingResponse,
+              aesKey,
+              iv
+            );
+
+          return res
+            .status(200)
+            .set(
+              "Content-Type",
+              "text/plain"
+            )
+            .send(
+              encryptedResponse
+            );
+
+        }
+
+        // ✅ RESPUESTA FLOW
+        const response = {
+
+          screen:
+            "SUCCESS",
+
+          data: {}
 
         };
 
         const encryptedResponse =
           encryptResponse(
-            pingResponse,
+            response,
             aesKey,
             iv
           );
 
-        // Meta exige SOLO BASE64
         return res
           .status(200)
           .set(
@@ -297,53 +564,312 @@ app.post(
 
       }
 
-      // RESPUESTA DEFAULT
-      const response = {
+      // =====================================
+      // 📲 WHATSAPP NORMAL
+      // =====================================
 
-        screen:
-          "SUCCESS",
+      const entry =
+        req.body
+          ?.entry?.[0]
+          ?.changes?.[0]
+          ?.value;
 
-        data: {}
+      if (!entry) {
+
+        return res.sendStatus(200);
+
+      }
+
+      const numeroRemitente =
+        entry
+          ?.messages?.[0]
+          ?.from;
+
+      // 📩 MENSAJES TEXTO
+      const mensajeTexto =
+        entry
+          ?.messages?.[0]
+          ?.text?.body;
+
+      if (mensajeTexto) {
+
+        const texto =
+          mensajeTexto
+            .trim()
+            .toLowerCase();
+
+        // XF SIMPLE
+        if (
+          [
+            "xf",
+            "taxi",
+            "reserva"
+          ].includes(texto)
+        ) {
+
+          await enviarFlow(
+            numeroRemitente
+          );
+
+          return res.sendStatus(200);
+
+        }
+
+        // XF + NÚMERO
+        if (
+          numeroRemitente ===
+          "51961507276" &&
+          texto.startsWith(
+            "xf "
+          )
+        ) {
+
+          const partes =
+            texto.split(" ");
+
+          let numeroDestino =
+            partes[1];
+
+          if (!numeroDestino) {
+
+            return res.sendStatus(200);
+
+          }
+
+          if (
+            !numeroDestino.startsWith(
+              "51"
+            )
+          ) {
+
+            numeroDestino =
+              "51" +
+              numeroDestino;
+
+          }
+
+          await enviarFlow(
+            numeroDestino
+          );
+
+          await enviarMensaje(
+            numeroRemitente,
+            `✅ Formulario enviado a ${numeroDestino}`
+          );
+
+          return res.sendStatus(200);
+
+        }
+
+      }
+
+      // 📥 RESPUESTA FLOW NORMAL
+      const form =
+        entry
+          ?.messages?.[0]
+          ?.interactive
+          ?.nfm_reply
+          ?.response_json;
+
+      if (!form) {
+
+        return res.sendStatus(200);
+
+      }
+
+      const cliente =
+        form.cliente ||
+        "EXALMAR";
+
+      const registroBase = {
+
+        titulo:
+          "EXALMAR FLOTA",
+
+        nombre:
+          "",
+
+        inicio:
+          "",
+
+        destino:
+          "",
+
+        fecha:
+          "",
+
+        hora:
+          "",
+
+        autoriza:
+          "",
+
+        fecha_registro:
+          new Date()
+            .toLocaleString(
+              "es-PE"
+            )
 
       };
 
-      const encryptedResponse =
-        encryptResponse(
-          response,
-          aesKey,
-          iv
+      const extras = {};
+
+      for (const key in form) {
+
+        let value =
+          form[key];
+
+        if (
+          value === "OTROS" &&
+          form[
+            `${key}_otro`
+          ]
+        ) {
+
+          value =
+            form[
+              `${key}_otro`
+            ];
+
+        }
+
+        value =
+          upper(value);
+
+        if (
+          key in
+          registroBase
+        ) {
+
+          registroBase[
+            key
+          ] = value;
+
+        } else {
+
+          extras[key] =
+            value;
+
+        }
+
+      }
+
+      // 📊 GUARDAR
+      await guardarEnSheet(
+        cliente,
+        registroBase,
+        extras
+      );
+
+      // 📩 ARMAR MENSAJE
+      let mensaje =
+        `🚖 EXALMAR FLOTA - NUEVA RESERVA\n\n`;
+
+      if (
+        registroBase.nombre
+      ) {
+
+        mensaje +=
+          `👤 Nombre: ${registroBase.nombre}\n`;
+
+      }
+
+      if (
+        registroBase.inicio
+      ) {
+
+        mensaje +=
+          `📍 Inicio: ${registroBase.inicio}\n`;
+
+      }
+
+      if (
+        registroBase.destino
+      ) {
+
+        mensaje +=
+          `🏁 Destino: ${registroBase.destino}\n`;
+
+      }
+
+      if (
+        registroBase.fecha
+      ) {
+
+        mensaje +=
+          `📅 Fecha: ${registroBase.fecha}\n`;
+
+      }
+
+      if (
+        registroBase.hora
+      ) {
+
+        mensaje +=
+          `⏰ Hora: ${registroBase.hora}\n`;
+
+      }
+
+      if (
+        registroBase.autoriza
+      ) {
+
+        mensaje +=
+          `✅ Autoriza: ${registroBase.autoriza}\n`;
+
+      }
+
+      for (
+        const key in extras
+      ) {
+
+        mensaje +=
+          `🔹 ${key.toUpperCase()}: ${extras[key]}\n`;
+
+      }
+
+      mensaje +=
+        `\n📌 Registro: ${registroBase.fecha_registro}`;
+
+      // 📲 ENVIAR NOTIFICACIONES
+      await enviarMensaje(
+        "51961507276",
+        mensaje
+      );
+
+      await enviarMensaje(
+        "51986767350",
+        mensaje
+      );
+
+      if (
+        numeroRemitente
+      ) {
+
+        await enviarMensaje(
+          numeroRemitente,
+          mensaje
         );
 
-      return res
-        .status(200)
-        .set(
-          "Content-Type",
-          "text/plain"
-        )
-        .send(
-          encryptedResponse
-        );
+      }
 
-    } catch (
-      error
-    ) {
+      return res.sendStatus(200);
+
+    } catch (error) {
 
       console.error(
-        "❌ ERROR:",
+        "❌ ERROR GENERAL:",
         error
       );
 
-      return res
-        .status(500)
-        .send(
-          "Internal Server Error"
-        );
+      return res.sendStatus(500);
 
     }
 
   }
 );
 
+// 🚀 SERVER
 const PORT =
   process.env.PORT ||
   3000;
@@ -353,7 +879,7 @@ app.listen(
   () => {
 
     console.log(
-      "🚀 Servidor:",
+      "🚀 Servidor corriendo en puerto",
       PORT
     );
 
