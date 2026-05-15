@@ -438,7 +438,7 @@ async function enviarFlow(
     }
 
     // ✅ ENVIAR TEMPLATE
-    await axios.post(
+  await axios.post(
   `https://graph.facebook.com/v20.0/${PHONE_NUMBER_ID}/messages`,
   {
     messaging_product:
@@ -460,20 +460,7 @@ async function enviarFlow(
         code:
           "es_PE"
 
-      },
-
-      components: [
-        {
-          type:
-            "button",
-
-          sub_type:
-            "flow",
-
-          index:
-            "0"
-        }
-      ]
+      }
 
     }
 
@@ -490,6 +477,8 @@ async function enviarFlow(
     }
   }
 );
+
+
 // 🔢 CORRELATIVO
 async function generarCorrelativo(
   sheets,
