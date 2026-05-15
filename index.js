@@ -671,7 +671,7 @@ app.post(
       }
 
       // 📥 FORMULARIO
-      const form =
+      let form =
         entry
           ?.messages?.[0]
           ?.interactive
@@ -683,6 +683,21 @@ app.post(
         return res.sendStatus(200);
 
       }
+
+      // 🔥 STRING → OBJETO
+      if (
+        typeof form === "string"
+      ) {
+
+        form =
+          JSON.parse(form);
+
+      }
+
+      console.log(
+        "📥 FORM:",
+        form
+      );
 
       const cliente =
         form.cliente ||
