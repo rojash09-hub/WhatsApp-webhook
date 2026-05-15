@@ -12,10 +12,7 @@ app.use(
   })
 );
 
-// ======================================================
-// VARIABLES
-// ======================================================
-
+// 🔐 VARIABLES
 const VERIFY_TOKEN =
   process.env.VERIFY_TOKEN;
 
@@ -27,95 +24,13 @@ const PHONE_NUMBER_ID =
 
 const PRIVATE_KEY =
   process.env.PRIVATE_KEY_ACCOUNT
-    ? process.env.PRIVATE_KEY_ACCOUNT
+    ? process.env
+        .PRIVATE_KEY_ACCOUNT
         .replace(/\\n/g, "\n")
         .replace(/\r/g, "")
     : null;
 
-// ======================================================
-// CONFIGURACION FLOWS
-// ======================================================
-
-const CONFIG = {
-
-  EXALMAR: {
-
-    title:
-      "EXALMAR FLOTA",
-
-    flowId:
-      "1487962506700406",
-
-    shortcut:
-      "XF",
-
-    spreadsheetId:
-      "1LM9JMK8yySI9CVCe785bDdsi-j1fFaJPpvIE19zDkiw"
-
-  },
-
-  CENTINELA: {
-
-    title:
-      "CENTINELA FLOTA",
-
-    flowId:
-      "1562186275266854",
-
-    shortcut:
-      "CF",
-
-    spreadsheetId:
-      "1z7C4HyHc3VIMxnGHWLbDTynXslutqP5gT-j_zMW1dIU"
-
-  },
-
-  PLANTA_CALLAO: {
-
-    title:
-      "PLANTA CALLAO",
-
-    flowId:
-      "3257150361132563",
-
-    shortcut:
-      "PC",
-
-    spreadsheetId:
-      "189ivlWlIESMcZ05_D12-5bpBIPPvLwStaRxSUfxZ2aI"
-
-  },
-
-  GLOBAL: {
-
-    title:
-      "GLOBAL",
-
-    flowId:
-      "2051713752436319",
-
-    shortcut:
-      "GLOBAL",
-
-    spreadsheetId:
-      "1reGQpDdBpgtE0Wd4s2xM17x2dzzEIpV-DL2qEsvJgVc"
-
-  }
-
-};
-
-// ======================================================
-// FUNCIONES
-// ======================================================
-
-function upper(text) {
-
-  return text
-    ? text.toString().toUpperCase()
-    : "";
-
-}
-
+// 🇵🇪 FECHA PERÚ
 function fechaPeru() {
 
   return new Date(
@@ -130,22 +45,93 @@ function fechaPeru() {
 
 }
 
-// ======================================================
-// HEALTH
-// ======================================================
+// 🔠 MAYÚSCULAS
+const upper = (text) =>
+  text
+    ? text.toString().toUpperCase()
+    : "";
 
+// ✅ CONFIGURACIÓN FLOWS
+const CONFIG = {
+
+  EXALMAR: {
+
+    title:
+      "EXALMAR FLOTA",
+
+    flowId:
+      "1487962506700406",
+
+    command:
+      "xf",
+
+    sheetId:
+      "1LM9JMK8yySI9CVCe785bDdsi-j1fFaJPpvIE19zDkiw"
+
+  },
+
+  CENTINELA: {
+
+    title:
+      "CENTINELA FLOTA",
+
+    flowId:
+      "1562186275266854",
+
+    command:
+      "cf",
+
+    sheetId:
+      "1z7C4HyHc3VIMxnGHWLbDTynXslutqP5gT-j_zMW1dIU"
+
+  },
+
+  PLANTA_CALLAO: {
+
+    title:
+      "PLANTA CALLAO",
+
+    flowId:
+      "3257150361132563",
+
+    command:
+      "pc",
+
+    sheetId:
+      "189ivlWlIESMcZ05_D12-5bpBIPPvLwStaRxSUfxZ2aI"
+
+  },
+
+  GLOBAL: {
+
+    title:
+      "GLOBAL",
+
+    flowId:
+      "2051713752436319",
+
+    command:
+      "global",
+
+    sheetId:
+      "1reGQpDdBpgtE0Wd4s2xM17x2dzzEIpV-DL2qEsvJgVc"
+
+  }
+
+};
+
+// ❤️ HEALTH
 app.get("/", (req, res) => {
 
-  return res.json({
-    ok: true
-  });
+  return res
+    .status(200)
+    .json({
+      status: "ok"
+    });
 
 });
 
-// ======================================================
-// VERIFY WEBHOOK
-// ======================================================
-
+// ✅ VERIFY WEBHOOK
 app.get("/webhook", (req, res) => {
 
   const mode =
@@ -162,10 +148,6 @@ app.get("/webhook", (req, res) => {
     token === VERIFY_TOKEN
   ) {
 
-    console.log(
-      "✅ WEBHOOK VERIFICADO"
-    );
-
     return res
       .status(200)
       .send(challenge);
@@ -176,11 +158,10 @@ app.get("/webhook", (req, res) => {
 
 });
 
-// ======================================================
-// DESCIFRAR FLOW
-// ======================================================
-
-function decryptFlowData(body) {
+// 🔓 DESCIFRAR FLOW
+function decryptFlowData(
+  body
+) {
 
   const encryptedAesKey =
     Buffer.from(
@@ -261,10 +242,7 @@ function decryptFlowData(body) {
 
 }
 
-// ======================================================
-// ENCRIPTAR RESPUESTA
-// ======================================================
-
+// 🔁 INVERTIR IV
 function flipIv(iv) {
 
   const flipped =
@@ -285,6 +263,7 @@ function flipIv(iv) {
 
 }
 
+// 🔐 CIFRAR RESPUESTA
 function encryptResponse(
   response,
   aesKey,
@@ -331,10 +310,7 @@ function encryptResponse(
 
 }
 
-// ======================================================
-// ENVIAR MENSAJE
-// ======================================================
-
+// 📲 ENVIAR MENSAJE
 async function enviarMensaje(
   numero,
   mensaje
@@ -372,11 +348,6 @@ async function enviarMensaje(
       }
     );
 
-    console.log(
-      "✅ MENSAJE ENVIADO",
-      numero
-    );
-
   } catch (error) {
 
     console.error(
@@ -388,10 +359,7 @@ async function enviarMensaje(
 
 }
 
-// ======================================================
-// ENVIAR FLOW
-// ======================================================
-
+// 📲 ENVIAR FLOW
 async function enviarFlow(
   numero,
   tipo
@@ -403,11 +371,6 @@ async function enviarFlow(
       CONFIG[tipo];
 
     if (!cfg) {
-
-      console.log(
-        "❌ FLOW NO EXISTE:",
-        tipo
-      );
 
       return;
 
@@ -433,7 +396,7 @@ async function enviarFlow(
           body: {
 
             text:
-              `🚖 ${cfg.title}\nSolicita tu movilidad aquí:`
+              `🚖 ${cfg.title}\nSolicita aquí:`
 
           },
 
@@ -451,7 +414,7 @@ async function enviarFlow(
                 cfg.flowId,
 
               flow_cta:
-                "ABRIR FORMULARIO"
+                "ABRIR"
 
             }
 
@@ -472,10 +435,6 @@ async function enviarFlow(
       }
     );
 
-    console.log(
-      `✅ FLOW ${tipo} ENVIADO`
-    );
-
   } catch (error) {
 
     console.error(
@@ -487,13 +446,10 @@ async function enviarFlow(
 
 }
 
-// ======================================================
-// CORRELATIVO
-// ======================================================
-
+// 🔢 CORRELATIVO
 async function generarCorrelativo(
   sheets,
-  spreadsheetId
+  sheetId
 ) {
 
   try {
@@ -504,7 +460,8 @@ async function generarCorrelativo(
         .values
         .get({
 
-          spreadsheetId,
+          spreadsheetId:
+            sheetId,
 
           range:
             "Data!B:B"
@@ -516,12 +473,7 @@ async function generarCorrelativo(
 
     return 100 + rows.length;
 
-  } catch (error) {
-
-    console.error(
-      "❌ ERROR CORRELATIVO:",
-      error
-    );
+  } catch {
 
     return 101;
 
@@ -529,10 +481,7 @@ async function generarCorrelativo(
 
 }
 
-// ======================================================
-// GUARDAR SHEETS
-// ======================================================
-
+// 📊 GUARDAR SHEETS
 async function guardarEnSheet(
   tipo,
   registroBase,
@@ -541,23 +490,8 @@ async function guardarEnSheet(
 
   try {
 
-    const cfg =
-      CONFIG[tipo];
-
-    if (!cfg) {
-
-      console.log(
-        "❌ CONFIG NO EXISTE:",
-        tipo
-      );
-
-      return null;
-
-    }
-
     const auth =
       new google.auth.GoogleAuth({
-
         credentials:
           JSON.parse(
             process.env
@@ -567,7 +501,6 @@ async function guardarEnSheet(
         scopes: [
           "https://www.googleapis.com/auth/spreadsheets"
         ]
-
       });
 
     const sheets =
@@ -577,48 +510,38 @@ async function guardarEnSheet(
         auth
       });
 
+    const sheetId =
+      CONFIG[tipo].sheetId;
+
     const correlativo =
       await generarCorrelativo(
         sheets,
-        cfg.spreadsheetId
+        sheetId
       );
 
-    const values = [[
-
-      registroBase.titulo || "",
-
-      correlativo || "",
-
-      registroBase.fecha || "",
-
-      registroBase.hora || "",
-
-      registroBase.solicitante ||
-      registroBase.autoriza ||
-      registroBase.empresa ||
-      "",
-
-      registroBase.usuario ||
-      registroBase.nombre ||
-      "",
-
-      registroBase.inicio || "",
-
-      registroBase.destino || "",
-
-      "",
-
-      "",
-
-      registroBase.observaciones || "",
-
-      JSON.stringify(
-        extras
-      ),
-
-      registroBase.fecha_registro || ""
-
-    ]];
+    const values = [
+      [
+        registroBase.titulo || "",
+        correlativo || "",
+        registroBase.fecha || "",
+        registroBase.hora || "",
+        registroBase.solicitante ||
+        registroBase.autoriza ||
+        "",
+        registroBase.empresa || "",
+        registroBase.tipo_unidad || "",
+        registroBase.usuario ||
+        registroBase.nombre ||
+        "",
+        registroBase.inicio || "",
+        registroBase.destino || "",
+        "",
+        "",
+        registroBase.observaciones || "",
+        JSON.stringify(extras),
+        registroBase.fecha_registro || ""
+      ]
+    ];
 
     await sheets
       .spreadsheets
@@ -626,10 +549,10 @@ async function guardarEnSheet(
       .append({
 
         spreadsheetId:
-          cfg.spreadsheetId,
+          sheetId,
 
         range:
-          "Data!A:M",
+          "Data!A:O",
 
         valueInputOption:
           "USER_ENTERED",
@@ -639,10 +562,6 @@ async function guardarEnSheet(
         }
 
       });
-
-    console.log(
-      `✅ GUARDADO EN ${tipo}`
-    );
 
     return correlativo;
 
@@ -659,20 +578,17 @@ async function guardarEnSheet(
 
 }
 
-// ======================================================
-// WEBHOOK
-// ======================================================
-
+// 🚀 WEBHOOK
 app.post(
   "/webhook",
-  async (req, res) => {
+  async (
+    req,
+    res
+  ) => {
 
     try {
 
-      // ======================================================
-      // FLOW ENCRIPTADO
-      // ======================================================
-
+      // 🔐 FLOW ENCRYPTED
       if (
         req.body
           .encrypted_aes_key
@@ -692,25 +608,33 @@ app.post(
           "ping"
         ) {
 
-          const response = {
+          const pingResponse = {
 
             data: {
+
               status:
                 "active"
+
             }
 
           };
 
-          const encrypted =
+          const encryptedResponse =
             encryptResponse(
-              response,
+              pingResponse,
               aesKey,
               iv
             );
 
           return res
             .status(200)
-            .send(encrypted);
+            .set(
+              "Content-Type",
+              "text/plain"
+            )
+            .send(
+              encryptedResponse
+            );
 
         }
 
@@ -723,7 +647,7 @@ app.post(
 
         };
 
-        const encrypted =
+        const encryptedResponse =
           encryptResponse(
             response,
             aesKey,
@@ -732,13 +656,15 @@ app.post(
 
         return res
           .status(200)
-          .send(encrypted);
+          .set(
+            "Content-Type",
+            "text/plain"
+          )
+          .send(
+            encryptedResponse
+          );
 
       }
-
-      // ======================================================
-      // MENSAJES
-      // ======================================================
 
       const entry =
         req.body
@@ -752,7 +678,7 @@ app.post(
 
       }
 
-      const numero =
+      const numeroRemitente =
         entry
           ?.messages?.[0]
           ?.from;
@@ -762,67 +688,80 @@ app.post(
           ?.messages?.[0]
           ?.text?.body;
 
-      // ======================================================
-      // ABREVIATURAS
-      // ======================================================
-
+      // 📩 COMANDOS
       if (mensajeTexto) {
 
         const texto =
           mensajeTexto
             .trim()
-            .toUpperCase();
+            .toLowerCase();
 
-        if (texto === "XF") {
+        for (const key in CONFIG) {
 
-          await enviarFlow(
-            numero,
-            "EXALMAR"
-          );
+          const cfg =
+            CONFIG[key];
 
-          return res.sendStatus(200);
+          // SIMPLE
+          if (
+            texto ===
+            cfg.command
+          ) {
 
-        }
+            await enviarFlow(
+              numeroRemitente,
+              key
+            );
 
-        if (texto === "CF") {
+            return res.sendStatus(200);
 
-          await enviarFlow(
-            numero,
-            "CENTINELA"
-          );
+          }
 
-          return res.sendStatus(200);
+          // ADMIN
+          if (
+            numeroRemitente ===
+            "51961507276" &&
+            texto.startsWith(
+              cfg.command + " "
+            )
+          ) {
 
-        }
+            const partes =
+              texto.split(" ");
 
-        if (texto === "PC") {
+            let numeroDestino =
+              partes[1];
 
-          await enviarFlow(
-            numero,
-            "PLANTA_CALLAO"
-          );
+            if (
+              !numeroDestino.startsWith(
+                "51"
+              )
+            ) {
 
-          return res.sendStatus(200);
+              numeroDestino =
+                "51" +
+                numeroDestino;
 
-        }
+            }
 
-        if (texto === "GLOBAL") {
+            await enviarFlow(
+              numeroDestino,
+              key
+            );
 
-          await enviarFlow(
-            numero,
-            "GLOBAL"
-          );
+            await enviarMensaje(
+              numeroRemitente,
+              `✅ FORMULARIO ENVIADO A ${numeroDestino}`
+            );
 
-          return res.sendStatus(200);
+            return res.sendStatus(200);
+
+          }
 
         }
 
       }
 
-      // ======================================================
-      // FORMULARIO
-      // ======================================================
-
+      // 🔥 FORMULARIO
       let form =
         entry
           ?.messages?.[0]
@@ -845,11 +784,6 @@ app.post(
 
       }
 
-      console.log(
-        "📥 FORM:",
-        form
-      );
-
       const tipo =
         form.tipo_flujo ||
         "EXALMAR";
@@ -858,11 +792,6 @@ app.post(
         CONFIG[tipo];
 
       if (!cfg) {
-
-        console.log(
-          "❌ NO EXISTE TIPO:",
-          tipo
-        );
 
         return res.sendStatus(200);
 
@@ -886,14 +815,7 @@ app.post(
       for (const key in form) {
 
         if (
-          key === "flow_token"
-        ) {
-
-          continue;
-
-        }
-
-        if (
+          key === "flow_token" ||
           key === "tipo_flujo"
         ) {
 
@@ -921,7 +843,6 @@ app.post(
         value =
           upper(value);
 
-        // FECHA
         if (
           key === "fecha" &&
           value === "HOY"
@@ -935,7 +856,6 @@ app.post(
 
         }
 
-        // HORA
         if (
           key === "hora" &&
           (
@@ -951,10 +871,8 @@ app.post(
                 {
                   hour:
                     "2-digit",
-
                   minute:
                     "2-digit",
-
                   hour12:
                     false
                 }
@@ -962,22 +880,16 @@ app.post(
 
         }
 
-        registroBase[
-          key
-        ] = value;
+        registroBase[key] =
+          value;
 
-        extras[
-          key
-        ] = value;
+        extras[key] =
+          value;
 
       }
 
       delete extras.flow_token;
       delete extras.tipo_flujo;
-
-      // ======================================================
-      // GUARDAR
-      // ======================================================
 
       const correlativo =
         await guardarEnSheet(
@@ -986,71 +898,54 @@ app.post(
           extras
         );
 
-      // ======================================================
-      // MENSAJE
-      // ======================================================
-
       let mensaje =
         `🚖 ${registroBase.titulo}\n\n`;
 
       mensaje +=
         `🆔 CODIGO: ${correlativo}\n\n`;
 
+      if (registroBase.empresa) {
+        mensaje += `🏢 EMPRESA: ${registroBase.empresa}\n`;
+      }
+
       if (registroBase.solicitante) {
+        mensaje += `👤 SOLICITANTE: ${registroBase.solicitante}\n`;
+      }
 
-        mensaje +=
-          `🔹 SOLICITANTE: ${registroBase.solicitante}\n`;
-
+      if (registroBase.tipo_unidad) {
+        mensaje += `🚘 TIPO UNIDAD: ${registroBase.tipo_unidad}\n`;
       }
 
       if (registroBase.usuario) {
+        mensaje += `🙍 USUARIO: ${registroBase.usuario}\n`;
+      }
 
-        mensaje +=
-          `🔹 USUARIO: ${registroBase.usuario}\n`;
-
+      if (registroBase.nombre) {
+        mensaje += `🙍 NOMBRE: ${registroBase.nombre}\n`;
       }
 
       if (registroBase.inicio) {
-
-        mensaje +=
-          `🔹 INICIO: ${registroBase.inicio}\n`;
-
+        mensaje += `📍 INICIO: ${registroBase.inicio}\n`;
       }
 
       if (registroBase.destino) {
-
-        mensaje +=
-          `🔹 DESTINO: ${registroBase.destino}\n`;
-
+        mensaje += `🏁 DESTINO: ${registroBase.destino}\n`;
       }
 
       if (registroBase.fecha) {
-
-        mensaje +=
-          `🔹 FECHA: ${registroBase.fecha}\n`;
-
+        mensaje += `📅 FECHA: ${registroBase.fecha}\n`;
       }
 
       if (registroBase.hora) {
-
-        mensaje +=
-          `🔹 HORA: ${registroBase.hora}\n`;
-
+        mensaje += `⏰ HORA: ${registroBase.hora}\n`;
       }
 
       if (registroBase.observaciones) {
-
-        mensaje +=
-          `🔹 OBSERVACIONES: ${registroBase.observaciones}\n`;
-
+        mensaje += `📝 OBSERVACIONES: ${registroBase.observaciones}\n`;
       }
 
       mensaje +=
         `\n📌 REGISTRO: ${registroBase.fecha_registro}`;
-
-      // ======================================================
-      // ENVIOS
-      // ======================================================
 
       await enviarMensaje(
         "51961507276",
@@ -1062,10 +957,12 @@ app.post(
         mensaje
       );
 
-      if (numero) {
+      if (
+        numeroRemitente
+      ) {
 
         await enviarMensaje(
-          numero,
+          numeroRemitente,
           mensaje
         );
 
@@ -1087,17 +984,19 @@ app.post(
   }
 );
 
-// ======================================================
-// SERVER
-// ======================================================
-
+// 🚀 SERVER
 const PORT =
-  process.env.PORT || 3000;
+  process.env.PORT ||
+  3000;
 
-app.listen(PORT, () => {
+app.listen(
+  PORT,
+  () => {
 
-  console.log(
-    `🚀 SERVER OK ${PORT}`
-  );
+    console.log(
+      "🚀 SERVIDOR CORRIENDO:",
+      PORT
+    );
 
-});
+  }
+);
