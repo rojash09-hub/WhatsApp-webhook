@@ -405,6 +405,46 @@ async function enviarFlow(
 
 }
 
+// 🔢 GENERAR CORRELATIVO
+async function generarCorrelativo(
+  sheets,
+  sheetId
+) {
+
+  try {
+
+    const response =
+      await sheets
+        .spreadsheets
+        .values
+        .get({
+
+          spreadsheetId:
+            sheetId,
+
+          range:
+            "Data!B:B"
+
+        });
+
+    const rows =
+      response.data.values || [];
+
+    return 100 + rows.length;
+
+  } catch (error) {
+
+    console.error(
+      "❌ Error correlativo:",
+      error
+    );
+
+    return 101;
+
+  }
+
+}
+
 // 📊 GUARDAR SHEETS
 async function guardarEnSheet(
   cliente,
@@ -439,18 +479,33 @@ async function guardarEnSheet(
       SHEETS[cliente] ||
       SHEETS["EXALMAR"];
 
+    const correlativo =
+      await generarCorrelativo(
+        sheets,
+        sheetId
+      );
+
     const values = [
       [
         registroBase.titulo,
+
+        correlativo,
+
         registroBase.fecha,
+
         registroBase.hora,
+
         registroBase.autoriza,
+
         registroBase.nombre,
+
         registroBase.inicio,
+
         registroBase.destino,
 
-        "", // vacío 1
-        "", // vacío 2
+        "",
+
+        "",
 
         JSON.stringify(
           extras
@@ -469,7 +524,7 @@ async function guardarEnSheet(
           sheetId,
 
         range:
-          "Data!A:K",
+          "Data!A:L",
 
         valueInputOption:
           "USER_ENTERED",
@@ -484,12 +539,16 @@ async function guardarEnSheet(
       `✅ Guardado en ${cliente}`
     );
 
+    return correlativo;
+
   } catch (error) {
 
     console.error(
       "❌ Error Sheets:",
       error
     );
+
+    return null;
 
   }
 
@@ -792,7 +851,7 @@ app.post(
 
         }
 
-        // ⏰ AHORA / AHORA MISMO
+        // ⏰ AHORA
         if (
           key === "hora" &&
           (
@@ -838,15 +897,19 @@ app.post(
       }
 
       // 📊 GUARDAR
-      await guardarEnSheet(
-        cliente,
-        registroBase,
-        extras
-      );
+      const correlativo =
+        await guardarEnSheet(
+          cliente,
+          registroBase,
+          extras
+        );
 
       // 📩 MENSAJE
       let mensaje =
         `🚖 EXALMAR FLOTA - NUEVA RESERVA\n\n`;
+
+      mensaje +=
+        `🆔 CODIGO: ${correlativo}\n\n`;
 
       if (
         registroBase.nombre
