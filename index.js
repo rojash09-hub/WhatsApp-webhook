@@ -59,11 +59,11 @@ const CONFIG = {
     title:
       "EXALMAR FLOTA",
 
-    flowId:
-      "1487962506700406",
-
     alias:
       "XF",
+
+    flowId:
+      "1487962506700406",
 
     sheetId:
       "1LM9JMK8yySI9CVCe785bDdsi-j1fFaJPpvIE19zDkiw"
@@ -75,11 +75,11 @@ const CONFIG = {
     title:
       "CENTINELA FLOTA",
 
-    flowId:
-      "1562186275266854",
-
     alias:
       "CF",
+
+    flowId:
+      "1562186275266854",
 
     sheetId:
       "1z7C4HyHc3VIMxnGHWLbDTynXslutqP5gT-j_zMW1dIU"
@@ -91,11 +91,11 @@ const CONFIG = {
     title:
       "PLANTA CALLAO",
 
-    flowId:
-      "3257150361132563",
-
     alias:
       "PC",
+
+    flowId:
+      "3257150361132563",
 
     sheetId:
       "189ivlWlIESMcZ05_D12-5bpBIPPvLwStaRxSUfxZ2aI"
@@ -107,11 +107,11 @@ const CONFIG = {
     title:
       "GLOBAL",
 
-    flowId:
-      "2051713752436319",
-
     alias:
       "GLOBAL",
+
+    flowId:
+      "2051713752436319",
 
     sheetId:
       "1reGQpDdBpgtE0Wd4s2xM17x2dzzEIpV-DL2qEsvJgVc"
@@ -244,7 +244,7 @@ function decryptFlowData(
 
 }
 
-// 🔁 FLIP IV
+// 🔁 IV
 function flipIv(iv) {
 
   const flipped =
@@ -585,7 +585,7 @@ app.post(
 
     try {
 
-      // 🔐 FLOW ENCRIPTADO
+      // 🔐 FLOW CIFRADO
       if (
         req.body
           .encrypted_aes_key
@@ -692,7 +692,6 @@ app.post(
             .trim()
             .toUpperCase();
 
-        // XF
         if (
           texto === "XF"
         ) {
@@ -706,7 +705,6 @@ app.post(
 
         }
 
-        // CF
         if (
           texto === "CF"
         ) {
@@ -720,7 +718,6 @@ app.post(
 
         }
 
-        // PC
         if (
           texto === "PC"
         ) {
@@ -734,7 +731,6 @@ app.post(
 
         }
 
-        // GLOBAL
         if (
           texto === "GLOBAL"
         ) {
@@ -773,6 +769,12 @@ app.post(
 
       }
 
+      console.log(
+        "📥 FORM:",
+        form
+      );
+
+      // ✅ TIPO
       const tipo =
         form.tipo_flujo ||
         "EXALMAR";
@@ -782,10 +784,16 @@ app.post(
 
       if (!cfg) {
 
+        console.log(
+          "❌ FLOW NO CONFIGURADO:",
+          tipo
+        );
+
         return res.sendStatus(200);
 
       }
 
+      // ✅ BASE
       const registroBase = {
 
         titulo:
@@ -801,6 +809,7 @@ app.post(
 
       const extras = {};
 
+      // 🔥 RECORRER
       for (const key in form) {
 
         if (
@@ -830,6 +839,7 @@ app.post(
         let value =
           form[key];
 
+        // 🔥 OTROS
         if (
           value === "OTROS" &&
           form[
@@ -844,6 +854,7 @@ app.post(
 
         }
 
+        // 🔠 MAYÚSCULAS
         value =
           upper(value);
 
@@ -898,6 +909,7 @@ app.post(
 
       }
 
+      // ❌ LIMPIAR
       delete extras.flow_token;
       delete extras.tipo_flujo;
 
