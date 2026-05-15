@@ -8,18 +8,27 @@ app.use(bodyParser.json({
   limit: "10mb"
 }));
 
+// 🔐 VARIABLES
 const VERIFY_TOKEN =
   process.env.VERIFY_TOKEN;
 
+// 🔑 PRIVATE KEY
 const PRIVATE_KEY =
   process.env
     .PRIVATE_KEY_ACCOUNT
     ? process.env
         .PRIVATE_KEY_ACCOUNT
-        .replace(/\\n/g, "\n")
-        .replace(/\r/g, "")
+        .replace(
+          /\\n/g,
+          "\n"
+        )
+        .replace(
+          /\r/g,
+          ""
+        )
     : null;
 
+// 🧪 DEBUG
 console.log(
   "PRIVATE_KEY:",
   PRIVATE_KEY
@@ -27,86 +36,128 @@ console.log(
     : "NULL"
 );
 
-// HEALTH
-app.get("/", (req, res) => {
-  return res
-    .status(200)
-    .json({
-      status: "ok"
-    });
-});
-
-// VERIFY
-app.get("/webhook", (req, res) => {
-
-  const mode =
-    req.query["hub.mode"];
-
-  const token =
-    req.query["hub.verify_token"];
-
-  const challenge =
-    req.query["hub.challenge"];
-
-  if (
-    mode === "subscribe" &&
-    token === VERIFY_TOKEN
-  ) {
+// 🟢 HEALTH
+app.get(
+  "/",
+  (
+    req,
+    res
+  ) => {
 
     return res
-      .status(200)
-      .send(challenge);
+      .status(
+        200
+      )
+      .json({
+        status:
+          "ok"
+      });
 
   }
+);
 
-  return res.sendStatus(403);
+// 🟢 VERIFY
+app.get(
+  "/webhook",
+  (
+    req,
+    res
+  ) => {
 
-});
+    const mode =
+      req.query[
+        "hub.mode"
+      ];
 
-// DECRYPT
-function decryptFlowData(body) {
+    const token =
+      req.query[
+        "hub.verify_token"
+      ];
+
+    const challenge =
+      req.query[
+        "hub.challenge"
+      ];
+
+    if (
+      mode ===
+        "subscribe" &&
+      token ===
+        VERIFY_TOKEN
+    ) {
+
+      return res
+        .status(
+          200
+        )
+        .send(
+          challenge
+        );
+
+    }
+
+    return res
+      .sendStatus(
+        403
+      );
+
+  }
+);
+
+// 🔓 DESCIFRAR
+function decryptFlowData(
+  body
+) {
 
   const encryptedAesKey =
     Buffer.from(
-      body.encrypted_aes_key,
+      body
+        .encrypted_aes_key,
       "base64"
     );
 
   const iv =
     Buffer.from(
-      body.initial_vector,
+      body
+        .initial_vector,
       "base64"
     );
 
   const encryptedData =
     Buffer.from(
-      body.encrypted_flow_data,
+      body
+        .encrypted_flow_data,
       "base64"
     );
 
   const aesKey =
-    crypto.privateDecrypt(
-      {
-        key: PRIVATE_KEY,
-        padding:
-          crypto.constants
-            .RSA_PKCS1_OAEP_PADDING,
-        oaepHash:
-          "sha256"
-      },
-      encryptedAesKey
-    );
+    crypto
+      .privateDecrypt(
+        {
+          key:
+            PRIVATE_KEY,
+          padding:
+            crypto
+              .constants
+              .RSA_PKCS1_OAEP_PADDING,
+          oaepHash:
+            "sha256"
+        },
+        encryptedAesKey
+      );
 
   console.log(
     "AES KEY LENGTH:",
     aesKey.length
   );
 
-  // GCM = últimos 16 bytes = auth tag
-  const tag =
-    encryptedData.slice(-16);
+  // TAG = últimos 16 bytes
+  const authTag =
+    encryptedData.slice(
+      -16
+    );
 
-  const ciphertext =
+  const cipherText =
     encryptedData.slice(
       0,
       -16
@@ -121,40 +172,48 @@ function decryptFlowData(body) {
       );
 
   decipher.setAuthTag(
-    tag
+    authTag
   );
 
   const decrypted =
-    Buffer.concat([
-      decipher.update(
-        ciphertext
-      ),
-      decipher.final()
-    ]);
+    Buffer.concat(
+      [
+        decipher.update(
+          cipherText
+        ),
+        decipher.final()
+      ]
+    );
 
   return {
+
     data:
       JSON.parse(
         decrypted.toString(
           "utf8"
         )
       ),
+
     aesKey,
     iv
+
   };
 
 }
 
-// ENCRYPT
+// 🔐 CIFRAR RESPUESTA
 function encryptResponse(
   response,
   aesKey,
   iv
 ) {
 
+  // Meta requiere IV invertido
   const flippedIv =
     Buffer
-      .from(iv)
+      .from(
+        iv
+      )
       .reverse();
 
   const cipher =
@@ -174,28 +233,46 @@ function encryptResponse(
     );
 
   const encrypted =
-    Buffer.concat([
-      cipher.update(
-        payload
-      ),
-      cipher.final()
-    ]);
-
-  const tag =
-    cipher.getAuthTag();
-
-  return Buffer
-    .concat([
-      encrypted,
-      tag
-    ])
-    .toString(
-      "base64"
+    Buffer.concat(
+      [
+        cipher.update(
+          payload
+        ),
+        cipher.final()
+      ]
     );
+
+  const authTag =
+    cipher
+      .getAuthTag();
+
+  // ✅ Base64 limpio
+  const base64Response =
+    Buffer
+      .concat(
+        [
+          encrypted,
+          authTag
+        ]
+      )
+      .toString(
+        "base64"
+      )
+      .replace(
+        /\n/g,
+        ""
+      )
+      .replace(
+        /\r/g,
+        ""
+      )
+      .trim();
+
+  return base64Response;
 
 }
 
-// WEBHOOK
+// 🚀 WEBHOOK
 app.post(
   "/webhook",
   async (
@@ -223,13 +300,15 @@ app.post(
         data
       );
 
-      const response = {
-        version:
-          "1.0",
-        data: {}
-      };
+      const response =
+        {
+          version:
+            "3.0",
+          data:
+            {}
+        };
 
-      const encrypted =
+      const encryptedResponse =
         encryptResponse(
           response,
           aesKey,
@@ -237,10 +316,12 @@ app.post(
         );
 
       return res
-        .status(200)
+        .status(
+          200
+        )
         .json({
           encrypted_response:
-            encrypted
+            encryptedResponse
         });
 
     } catch (
@@ -253,7 +334,9 @@ app.post(
       );
 
       return res
-        .status(500)
+        .status(
+          500
+        )
         .send(
           "Internal Server Error"
         );
@@ -263,8 +346,10 @@ app.post(
   }
 );
 
+// 🚀 SERVER
 const PORT =
-  process.env.PORT ||
+  process.env
+    .PORT ||
   3000;
 
 app.listen(
