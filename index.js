@@ -8,154 +8,105 @@ app.use(bodyParser.json({
   limit: "10mb"
 }));
 
-// 🔐 VARIABLES
 const VERIFY_TOKEN =
   process.env.VERIFY_TOKEN;
 
-// 🔑 PRIVATE KEY
 const PRIVATE_KEY =
-  process.env
-    .PRIVATE_KEY_ACCOUNT
+  process.env.PRIVATE_KEY_ACCOUNT
     ? process.env
         .PRIVATE_KEY_ACCOUNT
-        .replace(
-          /\\n/g,
-          "\n"
-        )
-        .replace(
-          /\r/g,
-          ""
-        )
+        .replace(/\\n/g, "\n")
+        .replace(/\r/g, "")
     : null;
 
-// 🧪 DEBUG
 console.log(
   "PRIVATE_KEY:",
-  PRIVATE_KEY
-    ? "OK"
-    : "NULL"
+  PRIVATE_KEY ? "OK" : "NULL"
 );
 
-// 🟢 HEALTH
-app.get(
-  "/",
-  (
-    req,
-    res
-  ) => {
+// HEALTH
+app.get("/", (req, res) => {
+
+  return res
+    .status(200)
+    .json({
+      status: "ok"
+    });
+
+});
+
+// VERIFY
+app.get("/webhook", (req, res) => {
+
+  const mode =
+    req.query["hub.mode"];
+
+  const token =
+    req.query[
+      "hub.verify_token"
+    ];
+
+  const challenge =
+    req.query[
+      "hub.challenge"
+    ];
+
+  if (
+    mode === "subscribe" &&
+    token === VERIFY_TOKEN
+  ) {
 
     return res
-      .status(
-        200
-      )
-      .json({
-        status:
-          "ok"
-      });
+      .status(200)
+      .send(challenge);
 
   }
-);
 
-// 🟢 VERIFY
-app.get(
-  "/webhook",
-  (
-    req,
-    res
-  ) => {
+  return res.sendStatus(403);
 
-    const mode =
-      req.query[
-        "hub.mode"
-      ];
+});
 
-    const token =
-      req.query[
-        "hub.verify_token"
-      ];
-
-    const challenge =
-      req.query[
-        "hub.challenge"
-      ];
-
-    if (
-      mode ===
-        "subscribe" &&
-      token ===
-        VERIFY_TOKEN
-    ) {
-
-      return res
-        .status(
-          200
-        )
-        .send(
-          challenge
-        );
-
-    }
-
-    return res
-      .sendStatus(
-        403
-      );
-
-  }
-);
-
-// 🔓 DESCIFRAR
-function decryptFlowData(
-  body
-) {
+// DECRYPT
+function decryptFlowData(body) {
 
   const encryptedAesKey =
     Buffer.from(
-      body
-        .encrypted_aes_key,
+      body.encrypted_aes_key,
       "base64"
     );
 
   const iv =
     Buffer.from(
-      body
-        .initial_vector,
+      body.initial_vector,
       "base64"
     );
 
   const encryptedData =
     Buffer.from(
-      body
-        .encrypted_flow_data,
+      body.encrypted_flow_data,
       "base64"
     );
 
   const aesKey =
-    crypto
-      .privateDecrypt(
-        {
-          key:
-            PRIVATE_KEY,
-          padding:
-            crypto
-              .constants
-              .RSA_PKCS1_OAEP_PADDING,
-          oaepHash:
-            "sha256"
-        },
-        encryptedAesKey
-      );
+    crypto.privateDecrypt(
+      {
+        key: PRIVATE_KEY,
+        padding:
+          crypto.constants
+            .RSA_PKCS1_OAEP_PADDING,
+        oaepHash:
+          "sha256"
+      },
+      encryptedAesKey
+    );
 
   console.log(
     "AES KEY LENGTH:",
     aesKey.length
   );
 
-  // TAG = últimos 16 bytes
   const authTag =
-    encryptedData.slice(
-      -16
-    );
+    encryptedData.slice(-16);
 
   const cipherText =
     encryptedData.slice(
@@ -164,26 +115,23 @@ function decryptFlowData(
     );
 
   const decipher =
-    crypto
-      .createDecipheriv(
-        "aes-128-gcm",
-        aesKey,
-        iv
-      );
+    crypto.createDecipheriv(
+      "aes-128-gcm",
+      aesKey,
+      iv
+    );
 
   decipher.setAuthTag(
     authTag
   );
 
   const decrypted =
-    Buffer.concat(
-      [
-        decipher.update(
-          cipherText
-        ),
-        decipher.final()
-      ]
-    );
+    Buffer.concat([
+      decipher.update(
+        cipherText
+      ),
+      decipher.final()
+    ]);
 
   return {
 
@@ -201,28 +149,24 @@ function decryptFlowData(
 
 }
 
-// 🔐 CIFRAR RESPUESTA
+// ENCRYPT
 function encryptResponse(
   response,
   aesKey,
   iv
 ) {
 
-  // Meta requiere IV invertido
   const flippedIv =
     Buffer
-      .from(
-        iv
-      )
+      .from(iv)
       .reverse();
 
   const cipher =
-    crypto
-      .createCipheriv(
-        "aes-128-gcm",
-        aesKey,
-        flippedIv
-      );
+    crypto.createCipheriv(
+      "aes-128-gcm",
+      aesKey,
+      flippedIv
+    );
 
   const payload =
     Buffer.from(
@@ -233,46 +177,33 @@ function encryptResponse(
     );
 
   const encrypted =
-    Buffer.concat(
-      [
-        cipher.update(
-          payload
-        ),
-        cipher.final()
-      ]
-    );
+    Buffer.concat([
+      cipher.update(
+        payload
+      ),
+      cipher.final()
+    ]);
 
   const authTag =
-    cipher
-      .getAuthTag();
+    cipher.getAuthTag();
 
-  // ✅ Base64 limpio
-  const base64Response =
-    Buffer
-      .concat(
-        [
-          encrypted,
-          authTag
-        ]
-      )
-      .toString(
-        "base64"
-      )
-      .replace(
-        /\n/g,
-        ""
-      )
-      .replace(
-        /\r/g,
-        ""
-      )
+  const base64 =
+    Buffer.concat([
+      encrypted,
+      authTag
+    ])
+      .toString("base64")
+      .replace(/\n/g, "")
+      .replace(/\r/g, "")
       .trim();
 
-  return base64Response;
+  return String(
+    base64
+  );
 
 }
 
-// 🚀 WEBHOOK
+// WEBHOOK
 app.post(
   "/webhook",
   async (
@@ -300,13 +231,14 @@ app.post(
         data
       );
 
-      const response =
-        {
-          version:
-            "3.0",
-          data:
-            {}
-        };
+      const response = {
+
+        version:
+          "3.0",
+
+        data: {}
+
+      };
 
       const encryptedResponse =
         encryptResponse(
@@ -315,14 +247,23 @@ app.post(
           iv
         );
 
+      // 👇 importante
       return res
-        .status(
-          200
+        .status(200)
+        .set(
+          "Content-Type",
+          "application/json"
         )
-        .json({
-          encrypted_response:
-            encryptedResponse
-        });
+        .send(
+          JSON.stringify({
+
+            encrypted_response:
+              String(
+                encryptedResponse
+              )
+
+          })
+        );
 
     } catch (
       error
@@ -334,9 +275,7 @@ app.post(
       );
 
       return res
-        .status(
-          500
-        )
+        .status(500)
         .send(
           "Internal Server Error"
         );
@@ -346,10 +285,8 @@ app.post(
   }
 );
 
-// 🚀 SERVER
 const PORT =
-  process.env
-    .PORT ||
+  process.env.PORT ||
   3000;
 
 app.listen(
