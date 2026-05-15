@@ -95,6 +95,9 @@ const CONFIG = {
     command:
       "xf",
 
+    template:
+      "exal_flota",
+
     sheetId:
       "1LM9JMK8yySI9CVCe785bDdsi-j1fFaJPpvIE19zDkiw"
 
@@ -110,6 +113,9 @@ const CONFIG = {
 
     command:
       "cf",
+
+    template:
+      "centinela_flota",
 
     sheetId:
       "1z7C4HyHc3VIMxnGHWLbDTynXslutqP5gT-j_zMW1dIU"
@@ -127,6 +133,9 @@ const CONFIG = {
     command:
       "pc",
 
+    template:
+      "planta_callao",
+
     sheetId:
       "189ivlWlIESMcZ05_D12-5bpBIPPvLwStaRxSUfxZ2aI"
 
@@ -141,6 +150,9 @@ const CONFIG = {
       "2051713752436319",
 
     command:
+      "global",
+
+    template:
       "global",
 
     sheetId:
@@ -340,6 +352,55 @@ function encryptResponse(
 
 }
 
+// 📲 ENVIAR MENSAJE
+async function enviarMensaje(
+  numero,
+  mensaje
+) {
+
+  try {
+
+    await axios.post(
+      `https://graph.facebook.com/v20.0/${PHONE_NUMBER_ID}/messages`,
+      {
+        messaging_product:
+          "whatsapp",
+
+        to:
+          numero,
+
+        type:
+          "text",
+
+        text: {
+          body:
+            mensaje
+        }
+      },
+      {
+        headers: {
+
+          Authorization:
+            `Bearer ${WHATSAPP_TOKEN}`,
+
+          "Content-Type":
+            "application/json"
+
+        }
+      }
+    );
+
+  } catch (error) {
+
+    console.error(
+      "❌ ERROR MENSAJE:",
+      error.response?.data || error
+    );
+
+  }
+
+}
+
 // 📲 ENVIAR FLOW
 async function enviarFlow(
   numero,
@@ -357,38 +418,6 @@ async function enviarFlow(
 
     }
 
-    // ✅ TEMPLATE SEGÚN EMPRESA
-    let templateName = "";
-
-    if (tipo === "EXALMAR") {
-
-      templateName =
-        "exal_flota";
-
-    }
-
-    else if (tipo === "CENTINELA") {
-
-      templateName =
-        "centinela_flota";
-
-    }
-
-    else if (tipo === "PLANTA_CALLAO") {
-
-      templateName =
-        "planta_callao";
-
-    }
-
-    else if (tipo === "GLOBAL") {
-
-      templateName =
-        "global";
-
-    }
-
-    // ✅ ENVIAR TEMPLATE FLOW
     await axios.post(
       `https://graph.facebook.com/v20.0/${PHONE_NUMBER_ID}/messages`,
       {
@@ -405,41 +434,14 @@ async function enviarFlow(
         template: {
 
           name:
-            templateName,
+            cfg.template,
 
           language: {
 
             code:
               "es_PE"
 
-          },
-
-          components: [
-            {
-
-              type:
-                "button",
-
-              sub_type:
-                "quick_reply",
-
-              index:
-                "0",
-
-              parameters: [
-                {
-
-                  type:
-                    "payload",
-
-                  payload:
-                    "FLOW"
-
-                }
-              ]
-
-            }
-          ]
+          }
 
         }
 
@@ -459,7 +461,7 @@ async function enviarFlow(
 
     console.log(
       "✅ FLOW ENVIADO:",
-      templateName
+      cfg.template
     );
 
   } catch (error) {
@@ -472,6 +474,7 @@ async function enviarFlow(
   }
 
 }
+
 // 🔢 CORRELATIVO
 async function generarCorrelativo(
   sheets,
@@ -545,110 +548,6 @@ async function guardarEnSheet(
         sheetId
       );
 
-    let values = [];
-    let range = "";
-
-    // ✅ EXALMAR
-    if (tipo === "EXALMAR") {
-
-      values = [
-        [
-          registroBase.titulo || "",
-          correlativo || "",
-          registroBase.fecha || "",
-          registroBase.hora || "",
-          registroBase.autoriza || "",
-          registroBase.nombre || "",
-          registroBase.inicio || "",
-          registroBase.destino || "",
-          "",
-          "",
-          registroBase.observaciones || "",
-          JSON.stringify(extras),
-          registroBase.fecha_registro || ""
-        ]
-      ];
-
-      range = "Data!A:M";
-
-    }
-
-    // ✅ CENTINELA
-    else if (tipo === "CENTINELA") {
-
-      values = [
-        [
-          registroBase.titulo || "",
-          correlativo || "",
-          registroBase.fecha || "",
-          registroBase.hora || "",
-          registroBase.solicitante || "",
-          registroBase.tipo_unidad || "",
-          registroBase.usuario || "",
-          registroBase.inicio || "",
-          registroBase.destino || "",
-          "",
-          "",
-          registroBase.observaciones || "",
-          JSON.stringify(extras),
-          registroBase.fecha_registro || ""
-        ]
-      ];
-
-      range = "Data!A:N";
-
-    }
-
-    // ✅ GLOBAL
-    else if (tipo === "GLOBAL") {
-
-      values = [
-        [
-          registroBase.titulo || "",
-          correlativo || "",
-          registroBase.empresa || "",
-          registroBase.fecha || "",
-          registroBase.hora || "",
-          registroBase.usuario || "",
-          registroBase.inicio || "",
-          registroBase.destino || "",
-          "",
-          "",
-          registroBase.observaciones || "",
-          JSON.stringify(extras),
-          registroBase.fecha_registro || ""
-        ]
-      ];
-
-      range = "Data!A:M";
-
-    }
-
-    // ✅ PLANTA CALLAO
-    else if (tipo === "PLANTA_CALLAO") {
-
-      values = [
-        [
-          registroBase.titulo || "",
-          correlativo || "",
-          registroBase.fecha || "",
-          registroBase.hora || "",
-          registroBase.solicitante || "",
-          registroBase.usuario || "",
-          registroBase.inicio || "",
-          registroBase.destino || "",
-          "",
-          "",
-          registroBase.observaciones || "",
-          JSON.stringify(extras),
-          registroBase.fecha_registro || ""
-        ]
-      ];
-
-      range = "Data!A:M";
-
-    }
-
     await sheets
       .spreadsheets
       .values
@@ -658,13 +557,27 @@ async function guardarEnSheet(
           sheetId,
 
         range:
-          range,
+          "Data!A:M",
 
         valueInputOption:
           "USER_ENTERED",
 
         requestBody: {
-          values
+          values: [[
+            registroBase.titulo || "",
+            correlativo || "",
+            registroBase.fecha || "",
+            registroBase.hora || "",
+            registroBase.solicitante || "",
+            registroBase.usuario || "",
+            registroBase.inicio || "",
+            registroBase.destino || "",
+            "",
+            "",
+            registroBase.observaciones || "",
+            JSON.stringify(extras),
+            registroBase.fecha_registro || ""
+          ]]
         }
 
       });
@@ -714,20 +627,14 @@ app.post(
           "ping"
         ) {
 
-          const pingResponse = {
-
-            data: {
-
-              status:
-                "active"
-
-            }
-
-          };
-
           const encryptedResponse =
             encryptResponse(
-              pingResponse,
+              {
+                data: {
+                  status:
+                    "active"
+                }
+              },
               aesKey,
               iv
             );
@@ -744,18 +651,14 @@ app.post(
 
         }
 
-        const response = {
-
-          screen:
-            "SUCCESS",
-
-          data: {}
-
-        };
-
         const encryptedResponse =
           encryptResponse(
-            response,
+            {
+              screen:
+                "SUCCESS",
+
+              data: {}
+            },
             aesKey,
             iv
           );
@@ -821,249 +724,7 @@ app.post(
 
           }
 
-          if (
-            numeroRemitente ===
-            "51961507276" &&
-            texto.startsWith(
-              cfg.command + " "
-            )
-          ) {
-
-            const partes =
-              texto.split(" ");
-
-            let numeroDestino =
-              partes[1];
-
-            if (
-              !numeroDestino.startsWith(
-                "51"
-              )
-            ) {
-
-              numeroDestino =
-                "51" +
-                numeroDestino;
-
-            }
-
-            await enviarFlow(
-              numeroDestino,
-              key
-            );
-
-            await enviarMensaje(
-              numeroRemitente,
-              `✅ FORMULARIO ENVIADO A ${numeroDestino}`
-            );
-
-            return res.sendStatus(200);
-
-          }
-
         }
-
-      }
-
-      // 🔥 FORMULARIO
-      let form =
-        entry
-          ?.messages?.[0]
-          ?.interactive
-          ?.nfm_reply
-          ?.response_json;
-
-      if (!form) {
-
-        return res.sendStatus(200);
-
-      }
-
-      if (
-        typeof form === "string"
-      ) {
-
-        form =
-          JSON.parse(form);
-
-      }
-
-      const tipo =
-        form.tipo_flujo ||
-        "EXALMAR";
-
-      const cfg =
-        CONFIG[tipo];
-
-      if (!cfg) {
-
-        return res.sendStatus(200);
-
-      }
-
-      const registroBase = {
-
-        titulo:
-          cfg.title,
-
-        fecha_registro:
-          fechaPeru()
-            .toLocaleString(
-              "es-PE"
-            )
-
-      };
-
-      const extras = {};
-
-      for (const key in form) {
-
-        if (
-          key === "flow_token" ||
-          key === "tipo_flujo"
-        ) {
-
-          continue;
-
-        }
-
-        let value =
-          form[key];
-
-        if (
-          value === "OTROS" &&
-          form[
-            `${key}_otro`
-          ]
-        ) {
-
-          value =
-            form[
-              `${key}_otro`
-            ];
-
-        }
-
-        value =
-          upper(value);
-
-        // ✅ FECHA AUTOMÁTICA
-        if (
-          key === "fecha" &&
-          (
-            value === "HOY" ||
-            value === "AHORA"
-          )
-        ) {
-
-          value =
-            obtenerFechaPeru();
-
-        }
-
-        // ✅ HORA AUTOMÁTICA
-        if (
-          key === "hora" &&
-          (
-            value === "AHORA" ||
-            value === "AHORA MISMO"
-          )
-        ) {
-
-          value =
-            obtenerHoraPeru();
-
-        }
-
-        registroBase[key] =
-          value;
-
-        extras[key] =
-          value;
-
-      }
-
-      delete extras.flow_token;
-      delete extras.tipo_flujo;
-
-      const correlativo =
-        await guardarEnSheet(
-          tipo,
-          registroBase,
-          extras
-        );
-
-      let mensaje =
-        `🚖 ${registroBase.titulo}\n\n`;
-
-      mensaje +=
-        `🆔 CODIGO: ${correlativo}\n\n`;
-
-      if (registroBase.empresa) {
-        mensaje += `🏢 EMPRESA: ${registroBase.empresa}\n`;
-      }
-
-      if (registroBase.solicitante) {
-        mensaje += `👤 SOLICITANTE: ${registroBase.solicitante}\n`;
-      }
-
-      if (registroBase.autoriza) {
-        mensaje += `👤 AUTORIZA: ${registroBase.autoriza}\n`;
-      }
-
-      if (registroBase.tipo_unidad) {
-        mensaje += `🚘 TIPO UNIDAD: ${registroBase.tipo_unidad}\n`;
-      }
-
-      if (registroBase.usuario) {
-        mensaje += `🙍 USUARIO: ${registroBase.usuario}\n`;
-      }
-
-      if (registroBase.nombre) {
-        mensaje += `🙍 NOMBRE: ${registroBase.nombre}\n`;
-      }
-
-      if (registroBase.inicio) {
-        mensaje += `📍 INICIO: ${registroBase.inicio}\n`;
-      }
-
-      if (registroBase.destino) {
-        mensaje += `🏁 DESTINO: ${registroBase.destino}\n`;
-      }
-
-      if (registroBase.fecha) {
-        mensaje += `📅 FECHA: ${registroBase.fecha}\n`;
-      }
-
-      if (registroBase.hora) {
-        mensaje += `⏰ HORA: ${registroBase.hora}\n`;
-      }
-
-      if (registroBase.observaciones) {
-        mensaje += `📝 OBSERVACIONES: ${registroBase.observaciones}\n`;
-      }
-
-      mensaje +=
-        `\n📌 REGISTRO: ${registroBase.fecha_registro}`;
-
-      await enviarMensaje(
-        "51961507276",
-        mensaje
-      );
-
-      await enviarMensaje(
-        "51986767350",
-        mensaje
-      );
-
-      if (
-        numeroRemitente
-      ) {
-
-        await enviarMensaje(
-          numeroRemitente,
-          mensaje
-        );
 
       }
 
