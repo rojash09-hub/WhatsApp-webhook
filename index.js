@@ -786,6 +786,45 @@ app.post(
         let value =
           form[key];
 
+        // ✅ FECHA AUTOMÁTICA
+        if (
+          key === "fecha" &&
+          upper(value) === "HOY"
+        ) {
+
+          value =
+            fechaPeru()
+              .toLocaleDateString(
+                "es-PE"
+              );
+
+        }
+
+        // ✅ HORA AUTOMÁTICA
+        if (
+          key === "hora" &&
+          (
+            upper(value) === "AHORA" ||
+            upper(value) === "AHORA MISMO"
+          )
+        ) {
+
+          value =
+            fechaPeru()
+              .toLocaleTimeString(
+                "es-PE",
+                {
+                  hour:
+                    "2-digit",
+                  minute:
+                    "2-digit",
+                  hour12:
+                    false
+                }
+              );
+
+        }
+
         value =
           upper(value);
 
