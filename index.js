@@ -1,15 +1,14 @@
 const express = require("express");
+const bodyParser = require("body-parser");
 const crypto = require("crypto");
 
 const app = express();
 
 app.use(
-  express.json({
+  bodyParser.json({
     limit: "10mb"
   })
 );
-
-app.disable("x-powered-by");
 
 const VERIFY_TOKEN =
   process.env.VERIFY_TOKEN;
@@ -70,18 +69,6 @@ function decryptFlowData(
   body
 ) {
 
-  if (
-    !body.encrypted_aes_key ||
-    !body.initial_vector ||
-    !body.encrypted_flow_data
-  ) {
-
-    throw new Error(
-      "Invalid encrypted payload"
-    );
-
-  }
-
   const encryptedAesKey =
     Buffer.from(
       body.encrypted_aes_key,
@@ -123,7 +110,7 @@ function decryptFlowData(
     aesKey.length
   );
 
-  // EXTRAER AUTHTAG
+  // EXTRAER AUTH TAG
   const authTag =
     encryptedData.slice(
       -16
@@ -183,8 +170,9 @@ function flipIv(iv) {
     i++
   ) {
 
+    // invertir byte
     flipped[i] =
-      ~iv[i];
+      iv[i] ^ 0xff;
 
   }
 
@@ -199,8 +187,7 @@ function encryptResponse(
   iv
 ) {
 
-  // IMPORTANTE:
-  // Meta requiere IV invertido
+  // usar IV invertido
   const flippedIv =
     flipIv(iv);
 
@@ -238,7 +225,7 @@ function encryptResponse(
       authTag
     ]);
 
-  // DEVOLVER SOLO BASE64
+  // DEVOLVER BASE64
   return finalBuffer.toString(
     "base64"
   );
@@ -270,11 +257,7 @@ app.post(
 
       console.log(
         "✅ DESCIFRADO:",
-        JSON.stringify(
-          data,
-          null,
-          2
-        )
+        data
       );
 
       // PING META
@@ -282,10 +265,6 @@ app.post(
         data.action ===
         "ping"
       ) {
-
-        console.log(
-          "🏓 PING RECIBIDO"
-        );
 
         const pingResponse = {
 
@@ -305,6 +284,7 @@ app.post(
             iv
           );
 
+        // Meta exige SOLO BASE64
         return res
           .status(200)
           .set(
@@ -373,7 +353,7 @@ app.listen(
   () => {
 
     console.log(
-      "🚀 Servidor iniciado en puerto:",
+      "🚀 Servidor:",
       PORT
     );
 
