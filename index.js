@@ -4,9 +4,11 @@ const crypto = require("crypto");
 
 const app = express();
 
-app.use(bodyParser.json({
-  limit: "10mb"
-}));
+app.use(
+  bodyParser.json({
+    limit: "10mb"
+  })
+);
 
 const VERIFY_TOKEN =
   process.env.VERIFY_TOKEN;
@@ -35,21 +37,17 @@ app.get("/", (req, res) => {
 
 });
 
-// VERIFY
+// WEBHOOK VERIFY
 app.get("/webhook", (req, res) => {
 
   const mode =
     req.query["hub.mode"];
 
   const token =
-    req.query[
-      "hub.verify_token"
-    ];
+    req.query["hub.verify_token"];
 
   const challenge =
-    req.query[
-      "hub.challenge"
-    ];
+    req.query["hub.challenge"];
 
   if (
     mode === "subscribe" &&
@@ -67,7 +65,9 @@ app.get("/webhook", (req, res) => {
 });
 
 // DECRYPT
-function decryptFlowData(body) {
+function decryptFlowData(
+  body
+) {
 
   const encryptedAesKey =
     Buffer.from(
@@ -90,12 +90,16 @@ function decryptFlowData(body) {
   const aesKey =
     crypto.privateDecrypt(
       {
-        key: PRIVATE_KEY,
+        key:
+          PRIVATE_KEY,
+
         padding:
           crypto.constants
             .RSA_PKCS1_OAEP_PADDING,
+
         oaepHash:
           "sha256"
+
       },
       encryptedAesKey
     );
@@ -106,7 +110,9 @@ function decryptFlowData(body) {
   );
 
   const authTag =
-    encryptedData.slice(-16);
+    encryptedData.slice(
+      -16
+    );
 
   const cipherText =
     encryptedData.slice(
@@ -193,7 +199,7 @@ function encryptResponse(
 
 }
 
-// WEBHOOK
+// FLOW WEBHOOK
 app.post(
   "/webhook",
   async (
@@ -221,10 +227,48 @@ app.post(
         data
       );
 
+      // ping de Meta
+      if (
+        data.action ===
+        "ping"
+      ) {
+
+        const pingResponse = {
+
+          data: {
+
+            status:
+              "active"
+
+          }
+
+        };
+
+        const encryptedResponse =
+          encryptResponse(
+            pingResponse,
+            aesKey,
+            iv
+          );
+
+        // 👇 Meta exige SOLO BASE64
+        return res
+          .status(200)
+          .set(
+            "Content-Type",
+            "text/plain"
+          )
+          .send(
+            encryptedResponse
+          );
+
+      }
+
+      // default
       const response = {
 
-        version:
-          "3.0",
+        screen:
+          "SUCCESS",
 
         data: {}
 
@@ -237,7 +281,6 @@ app.post(
           iv
         );
 
-      // 👇 FIX FINAL
       return res
         .status(200)
         .set(
@@ -245,7 +288,7 @@ app.post(
           "text/plain"
         )
         .send(
-          `{"encrypted_response":"${encryptedResponse}"}`
+          encryptedResponse
         );
 
     } catch (
@@ -253,7 +296,7 @@ app.post(
     ) {
 
       console.error(
-        "❌ ERROR GENERAL:",
+        "❌ ERROR:",
         error
       );
 
