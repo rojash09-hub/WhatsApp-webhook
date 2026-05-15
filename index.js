@@ -12,9 +12,9 @@ app.use(
   })
 );
 
-// =====================================================
-// 🔐 VARIABLES
-// =====================================================
+// ======================================================
+// VARIABLES
+// ======================================================
 
 const VERIFY_TOKEN =
   process.env.VERIFY_TOKEN;
@@ -32,9 +32,9 @@ const PRIVATE_KEY =
         .replace(/\r/g, "")
     : null;
 
-// =====================================================
-// 📊 CONFIG FLOWS
-// =====================================================
+// ======================================================
+// CONFIG FLOWS
+// ======================================================
 
 const CONFIG = {
 
@@ -45,6 +45,9 @@ const CONFIG = {
 
     flowId:
       "1487962506700406",
+
+    shortcut:
+      "XF",
 
     spreadsheetId:
       "1LM9JMK8yySI9CVCe785bDdsi-j1fFaJPpvIE19zDkiw"
@@ -59,6 +62,9 @@ const CONFIG = {
     flowId:
       "1562186275266854",
 
+    shortcut:
+      "CF",
+
     spreadsheetId:
       "1z7C4HyHc3VIMxnGHWLbDTynXslutqP5gT-j_zMW1dIU"
 
@@ -71,6 +77,9 @@ const CONFIG = {
 
     flowId:
       "3257150361132563",
+
+    shortcut:
+      "PC",
 
     spreadsheetId:
       "189ivlWlIESMcZ05_D12-5bpBIPPvLwStaRxSUfxZ2aI"
@@ -85,6 +94,9 @@ const CONFIG = {
     flowId:
       "2051713752436319",
 
+    shortcut:
+      "GLOBAL",
+
     spreadsheetId:
       "1reGQpDdBpgtE0Wd4s2xM17x2dzzEIpV-DL2qEsvJgVc"
 
@@ -92,9 +104,17 @@ const CONFIG = {
 
 };
 
-// =====================================================
-// 🇵🇪 FECHA PERÚ
-// =====================================================
+// ======================================================
+// FUNCIONES
+// ======================================================
+
+function upper(text) {
+
+  return text
+    ? text.toString().toUpperCase()
+    : "";
+
+}
 
 function fechaPeru() {
 
@@ -110,33 +130,21 @@ function fechaPeru() {
 
 }
 
-// =====================================================
-// 🔠 MAYÚSCULAS
-// =====================================================
-
-function upper(text) {
-
-  return text
-    ? text.toString().toUpperCase()
-    : "";
-
-}
-
-// =====================================================
-// ❤️ HEALTH
-// =====================================================
+// ======================================================
+// HEALTH
+// ======================================================
 
 app.get("/", (req, res) => {
 
-  return res.status(200).json({
-    status: "ok"
+  return res.json({
+    ok: true
   });
 
 });
 
-// =====================================================
-// ✅ VERIFY WEBHOOK
-// =====================================================
+// ======================================================
+// VERIFY WEBHOOK
+// ======================================================
 
 app.get("/webhook", (req, res) => {
 
@@ -154,6 +162,10 @@ app.get("/webhook", (req, res) => {
     token === VERIFY_TOKEN
   ) {
 
+    console.log(
+      "✅ WEBHOOK VERIFICADO"
+    );
+
     return res
       .status(200)
       .send(challenge);
@@ -164,9 +176,9 @@ app.get("/webhook", (req, res) => {
 
 });
 
-// =====================================================
-// 🔓 DECRYPT FLOW
-// =====================================================
+// ======================================================
+// FLOW DECRYPT
+// ======================================================
 
 function decryptFlowData(body) {
 
@@ -200,6 +212,7 @@ function decryptFlowData(body) {
 
         oaepHash:
           "sha256"
+
       },
       encryptedAesKey
     );
@@ -248,9 +261,9 @@ function decryptFlowData(body) {
 
 }
 
-// =====================================================
-// 🔁 FLIP IV
-// =====================================================
+// ======================================================
+// ENCRYPT RESPONSE
+// ======================================================
 
 function flipIv(iv) {
 
@@ -271,10 +284,6 @@ function flipIv(iv) {
   return flipped;
 
 }
-
-// =====================================================
-// 🔐 ENCRYPT RESPONSE
-// =====================================================
 
 function encryptResponse(
   response,
@@ -302,7 +311,9 @@ function encryptResponse(
 
   const encrypted =
     Buffer.concat([
-      cipher.update(payload),
+      cipher.update(
+        payload
+      ),
       cipher.final()
     ]);
 
@@ -314,13 +325,15 @@ function encryptResponse(
       encrypted,
       authTag
     ])
-    .toString("base64");
+    .toString(
+      "base64"
+    );
 
 }
 
-// =====================================================
-// 📲 ENVIAR MENSAJE
-// =====================================================
+// ======================================================
+// ENVIAR MENSAJE
+// ======================================================
 
 async function enviarMensaje(
   numero,
@@ -359,10 +372,15 @@ async function enviarMensaje(
       }
     );
 
+    console.log(
+      "✅ MENSAJE ENVIADO",
+      numero
+    );
+
   } catch (error) {
 
     console.error(
-      "❌ Error mensaje:",
+      "❌ ERROR MENSAJE:",
       error.response?.data || error
     );
 
@@ -370,16 +388,30 @@ async function enviarMensaje(
 
 }
 
-// =====================================================
-// 📲 ENVIAR FLOW
-// =====================================================
+// ======================================================
+// ENVIAR FLOW
+// ======================================================
 
 async function enviarFlow(
   numero,
-  flowId
+  tipo
 ) {
 
   try {
+
+    const cfg =
+      CONFIG[tipo];
+
+    if (!cfg) {
+
+      console.log(
+        "❌ FLOW NO EXISTE:",
+        tipo
+      );
+
+      return;
+
+    }
 
     await axios.post(
       `https://graph.facebook.com/v20.0/${PHONE_NUMBER_ID}/messages`,
@@ -401,7 +433,7 @@ async function enviarFlow(
           body: {
 
             text:
-              "🚖 FORMULARIO DE RESERVA"
+              `🚖 ${cfg.title}\nSolicita tu movilidad aquí:`
 
           },
 
@@ -416,7 +448,7 @@ async function enviarFlow(
                 "3",
 
               flow_id:
-                flowId,
+                cfg.flowId,
 
               flow_cta:
                 "ABRIR FORMULARIO"
@@ -441,14 +473,13 @@ async function enviarFlow(
     );
 
     console.log(
-      "✅ FLOW ENVIADO:",
-      flowId
+      `✅ FLOW ${tipo} ENVIADO`
     );
 
   } catch (error) {
 
     console.error(
-      "❌ Error Flow:",
+      "❌ ERROR FLOW:",
       error.response?.data || error
     );
 
@@ -456,9 +487,9 @@ async function enviarFlow(
 
 }
 
-// =====================================================
-// 🔢 CORRELATIVO
-// =====================================================
+// ======================================================
+// CORRELATIVO
+// ======================================================
 
 async function generarCorrelativo(
   sheets,
@@ -488,7 +519,7 @@ async function generarCorrelativo(
   } catch (error) {
 
     console.error(
-      "❌ Error correlativo:",
+      "❌ ERROR CORRELATIVO:",
       error
     );
 
@@ -498,9 +529,9 @@ async function generarCorrelativo(
 
 }
 
-// =====================================================
-// 📊 GUARDAR EN SHEETS
-// =====================================================
+// ======================================================
+// GUARDAR SHEETS
+// ======================================================
 
 async function guardarEnSheet(
   tipo,
@@ -526,26 +557,23 @@ async function guardarEnSheet(
 
     const auth =
       new google.auth.GoogleAuth({
-
         credentials:
           JSON.parse(
-            process.env.GOOGLE_CREDENTIALS
+            process.env
+              .GOOGLE_CREDENTIALS
           ),
 
         scopes: [
           "https://www.googleapis.com/auth/spreadsheets"
         ]
-
       });
 
     const sheets =
       google.sheets({
-
         version:
           "v4",
 
         auth
-
       });
 
     const correlativo =
@@ -560,21 +588,20 @@ async function guardarEnSheet(
 
       correlativo || "",
 
-      registroBase.empresa || "",
-
       registroBase.fecha || "",
 
       registroBase.hora || "",
 
-      registroBase.solicitante || "",
+      registroBase.solicitante ||
+        registroBase.autoriza ||
+        registroBase.empresa ||
+        "",
 
-      registroBase.tipo || "",
+      registroBase.tipo_unidad || "",
 
-      registroBase.usuario || "",
-
-      registroBase.autoriza || "",
-
-      registroBase.nombre || "",
+      registroBase.usuario ||
+        registroBase.nombre ||
+        "",
 
       registroBase.inicio || "",
 
@@ -586,7 +613,9 @@ async function guardarEnSheet(
 
       registroBase.observaciones || "",
 
-      JSON.stringify(extras),
+      JSON.stringify(
+        extras
+      ),
 
       registroBase.fecha_registro || ""
 
@@ -601,7 +630,7 @@ async function guardarEnSheet(
           cfg.spreadsheetId,
 
         range:
-          "Data!A:Q",
+          "Data!A:N",
 
         valueInputOption:
           "USER_ENTERED",
@@ -621,7 +650,7 @@ async function guardarEnSheet(
   } catch (error) {
 
     console.error(
-      "❌ Error Sheets:",
+      "❌ ERROR SHEETS:",
       error.response?.data || error
     );
 
@@ -631,20 +660,20 @@ async function guardarEnSheet(
 
 }
 
-// =====================================================
-// 🚀 WEBHOOK
-// =====================================================
+// ======================================================
+// WEBHOOK
+// ======================================================
 
 app.post(
   "/webhook",
-  async (
-    req,
-    res
-  ) => {
+  async (req, res) => {
 
     try {
 
-      // 🔐 FLOW ENCRYPTED
+      // ======================================================
+      // FLOW ENCRYPTED
+      // ======================================================
+
       if (
         req.body
           .encrypted_aes_key
@@ -664,33 +693,25 @@ app.post(
           "ping"
         ) {
 
-          const pingResponse = {
+          const response = {
 
             data: {
-
               status:
                 "active"
-
             }
 
           };
 
-          const encryptedResponse =
+          const encrypted =
             encryptResponse(
-              pingResponse,
+              response,
               aesKey,
               iv
             );
 
           return res
             .status(200)
-            .set(
-              "Content-Type",
-              "text/plain"
-            )
-            .send(
-              encryptedResponse
-            );
+            .send(encrypted);
 
         }
 
@@ -703,7 +724,7 @@ app.post(
 
         };
 
-        const encryptedResponse =
+        const encrypted =
           encryptResponse(
             response,
             aesKey,
@@ -712,19 +733,13 @@ app.post(
 
         return res
           .status(200)
-          .set(
-            "Content-Type",
-            "text/plain"
-          )
-          .send(
-            encryptedResponse
-          );
+          .send(encrypted);
 
       }
 
-      // =====================================================
-      // 📲 WHATSAPP
-      // =====================================================
+      // ======================================================
+      // WHATSAPP
+      // ======================================================
 
       const entry =
         req.body
@@ -738,57 +753,63 @@ app.post(
 
       }
 
-      const numeroRemitente =
+      const numero =
         entry
           ?.messages?.[0]
           ?.from;
-
-      // =====================================================
-      // 📩 TEXTO
-      // =====================================================
 
       const mensajeTexto =
         entry
           ?.messages?.[0]
           ?.text?.body;
 
+      // ======================================================
+      // COMANDOS FLOW
+      // ======================================================
+
       if (mensajeTexto) {
 
         const texto =
           mensajeTexto
             .trim()
-            .toLowerCase();
+            .toUpperCase();
 
-        // XF
-        if (texto === "xf") {
+        // EXALMAR
+        if (
+          texto === "XF"
+        ) {
 
           await enviarFlow(
-            numeroRemitente,
-            CONFIG.EXALMAR.flowId
+            numero,
+            "EXALMAR"
           );
 
           return res.sendStatus(200);
 
         }
 
-        // CF
-        if (texto === "cf") {
+        // CENTINELA
+        if (
+          texto === "CF"
+        ) {
 
           await enviarFlow(
-            numeroRemitente,
-            CONFIG.CENTINELA.flowId
+            numero,
+            "CENTINELA"
           );
 
           return res.sendStatus(200);
 
         }
 
-        // PC
-        if (texto === "pc") {
+        // PLANTA CALLAO
+        if (
+          texto === "PC"
+        ) {
 
           await enviarFlow(
-            numeroRemitente,
-            CONFIG.PLANTA_CALLAO.flowId
+            numero,
+            "PLANTA_CALLAO"
           );
 
           return res.sendStatus(200);
@@ -796,11 +817,13 @@ app.post(
         }
 
         // GLOBAL
-        if (texto === "global") {
+        if (
+          texto === "GLOBAL"
+        ) {
 
           await enviarFlow(
-            numeroRemitente,
-            CONFIG.GLOBAL.flowId
+            numero,
+            "GLOBAL"
           );
 
           return res.sendStatus(200);
@@ -809,9 +832,9 @@ app.post(
 
       }
 
-      // =====================================================
-      // 📥 FORM
-      // =====================================================
+      // ======================================================
+      // FORMULARIO
+      // ======================================================
 
       let form =
         entry
@@ -826,7 +849,6 @@ app.post(
 
       }
 
-      // STRING → OBJETO
       if (
         typeof form === "string"
       ) {
@@ -841,22 +863,9 @@ app.post(
         form
       );
 
-      // =====================================================
-      // 🔥 IMPORTANTE
-      // =====================================================
-
       const tipo =
-        form.tipo_flujo;
-
-      if (!tipo) {
-
-        console.log(
-          "❌ EL FORMULARIO NO ENVIA tipo_flujo"
-        );
-
-        return res.sendStatus(200);
-
-      }
+        form.tipo_flujo ||
+        "EXALMAR";
 
       const cfg =
         CONFIG[tipo];
@@ -864,17 +873,13 @@ app.post(
       if (!cfg) {
 
         console.log(
-          "❌ CONFIG NO EXISTE:",
+          "❌ NO EXISTE TIPO:",
           tipo
         );
 
         return res.sendStatus(200);
 
       }
-
-      // =====================================================
-      // 📦 BASE
-      // =====================================================
 
       const registroBase = {
 
@@ -891,14 +896,17 @@ app.post(
 
       const extras = {};
 
-      // =====================================================
-      // 🔥 RECORRER
-      // =====================================================
-
       for (const key in form) {
 
         if (
-          key === "flow_token" ||
+          key === "flow_token"
+        ) {
+
+          continue;
+
+        }
+
+        if (
           key === "tipo_flujo"
         ) {
 
@@ -909,7 +917,6 @@ app.post(
         let value =
           form[key];
 
-        // OTROS
         if (
           value === "OTROS" &&
           form[
@@ -924,7 +931,6 @@ app.post(
 
         }
 
-        // MAYÚSCULA
         value =
           upper(value);
 
@@ -969,17 +975,22 @@ app.post(
 
         }
 
-        registroBase[key] =
-          value;
+        registroBase[
+          key
+        ] = value;
 
-        extras[key] =
-          value;
+        extras[
+          key
+        ] = value;
 
       }
 
-      // =====================================================
-      // 📊 GUARDAR
-      // =====================================================
+      delete extras.flow_token;
+      delete extras.tipo_flujo;
+
+      // ======================================================
+      // GUARDAR
+      // ======================================================
 
       const correlativo =
         await guardarEnSheet(
@@ -988,9 +999,9 @@ app.post(
           extras
         );
 
-      // =====================================================
-      // 📩 MENSAJE
-      // =====================================================
+      // ======================================================
+      // MENSAJE
+      // ======================================================
 
       let mensaje =
         `🚖 ${registroBase.titulo}\n\n`;
@@ -1029,9 +1040,9 @@ app.post(
       mensaje +=
         `\n📌 REGISTRO: ${registroBase.fecha_registro}`;
 
-      // =====================================================
-      // 📲 ENVÍOS
-      // =====================================================
+      // ======================================================
+      // ENVIOS
+      // ======================================================
 
       await enviarMensaje(
         "51961507276",
@@ -1043,12 +1054,10 @@ app.post(
         mensaje
       );
 
-      if (
-        numeroRemitente
-      ) {
+      if (numero) {
 
         await enviarMensaje(
-          numeroRemitente,
+          numero,
           mensaje
         );
 
@@ -1070,22 +1079,17 @@ app.post(
   }
 );
 
-// =====================================================
-// 🚀 SERVER
-// =====================================================
+// ======================================================
+// SERVER
+// ======================================================
 
 const PORT =
-  process.env.PORT ||
-  3000;
+  process.env.PORT || 3000;
 
-app.listen(
-  PORT,
-  () => {
+app.listen(PORT, () => {
 
-    console.log(
-      "🚀 SERVER:",
-      PORT
-    );
+  console.log(
+    `🚀 SERVER OK ${PORT}`
+  );
 
-  }
-);
+});
