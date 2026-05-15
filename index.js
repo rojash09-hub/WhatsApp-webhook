@@ -5,7 +5,11 @@ const axios = require("axios");
 
 const app = express();
 
-app.use(bodyParser.json({ limit: "10mb" }));
+app.use(
+  bodyParser.json({
+    limit: "10mb"
+  })
+);
 
 // 🔐 VARIABLES DE ENTORNO
 const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
@@ -15,27 +19,15 @@ const PRIVATE_KEY = process.env.PRIVATE_KEY_ACCOUNT
   ? process.env.PRIVATE_KEY_ACCOUNT.replace(/\\n/g, "\n").replace(/\r/g, "")
   : null;
 
-// ✅ CONFIGURACIÓN DE FLOWS
+// ✅ CONFIGURACIÓN DE COMANDOS Y PLANTILLAS
 const CONFIG = {
-  EXALMAR: {
-    command: "xf",
-    template: "exal_flota"
-  },
-  CENTINELA: {
-    command: "cf",
-    template: "centinela_flota"
-  },
-  PLANTA_CALLAO: {
-    command: "pc",
-    template: "planta_callao"
-  },
-  GLOBAL: {
-    command: "global",
-    template: "global"
-  }
+  EXALMAR: { command: "xf", template: "exal_flota" },
+  CENTINELA: { command: "cf", template: "centinela_flota" },
+  PLANTA_CALLAO: { command: "pc", template: "planta_callao" },
+  GLOBAL: { command: "global", template: "global" }
 };
 
-// 🔓 DESCIFRAR FLOW
+// 🔓 DESCIFRAR DATA DEL FLOW
 function decryptFlowData(body) {
   const encryptedAesKey = Buffer.from(body.encrypted_aes_key, "base64");
   const iv = Buffer.from(body.initial_vector, "base64");
@@ -55,7 +47,10 @@ function decryptFlowData(body) {
   const decipher = crypto.createDecipheriv("aes-128-gcm", aesKey, iv);
   decipher.setAuthTag(authTag);
 
-  const decrypted = Buffer.concat([decipher.update(cipherText), decipher.final()]);
+  const decrypted = Buffer.concat([
+    decipher.update(cipherText),
+    decipher.final()
+  ]);
 
   return {
     data: JSON.parse(decrypted.toString("utf8")),
@@ -64,18 +59,13 @@ function decryptFlowData(body) {
   };
 }
 
-// 🔁 INVERTIR IV
-function flipIv(iv) {
-  const flipped = Buffer.alloc(iv.length);
-  for (let i = 0; i < iv.length; i++) {
-    flipped[i] = iv[i] ^ 0xff;
-  }
-  return flipped;
-}
-
-// 🔐 CIFRAR RESPUESTA
+// 🔐 CIFRAR RESPUESTA PARA EL FLOW
 function encryptResponse(response, aesKey, iv) {
-  const flippedIv = flipIv(iv);
+  const flippedIv = Buffer.alloc(iv.length);
+  for (let i = 0; i < iv.length; i++) {
+    flippedIv[i] = iv[i] ^ 0xff;
+  }
+
   const cipher = crypto.createCipheriv("aes-128-gcm", aesKey, flippedIv);
   const payload = Buffer.from(JSON.stringify(response), "utf8");
   const encrypted = Buffer.concat([cipher.update(payload), cipher.final()]);
@@ -84,7 +74,7 @@ function encryptResponse(response, aesKey, iv) {
   return Buffer.concat([encrypted, authTag]).toString("base64");
 }
 
-// 📲 ENVIAR FLOW (CORREGIDO PARA EVITAR "UNEXPECTED KEY FLOW_ID")
+// 📲 ENVIAR FLOW (CORREGIDO: Sin flow_id redundante)
 async function enviarFlow(numero, tipo) {
   try {
     const cfg = CONFIG[tipo];
@@ -109,7 +99,7 @@ async function enviarFlow(numero, tipo) {
                   type: "action",
                   action: {
                     flow_token: `token_${Date.now()}`
-                    // No incluimos flow_id ni flow_cta aquí porque Meta los toma de la plantilla
+                    // Nota: flow_id NO se envía aquí si la plantilla ya está vinculada en Meta
                   }
                 }
               ]
@@ -127,43 +117,46 @@ async function enviarFlow(numero, tipo) {
 
     console.log("✅ FLOW ENVIADO:", cfg.template);
   } catch (error) {
-    console.error("❌ ERROR AL ENVIAR FLOW:", JSON.stringify(error.response?.data, null, 2));
+    console.error(
+      "❌ ERROR AL ENVIAR FLOW:",
+      JSON.stringify(error.response?.data, null, 2)
+    );
   }
 }
 
-// 🚀 WEBHOOK
+// 🚀 WEBHOOK PRINCIPAL
 app.post("/webhook", async (req, res) => {
   try {
-    // 🔐 MANEJO DE FLOWS (CIFRADO)
+    // 1. Manejar interacción con el Flow (Cifrado)
     if (req.body.encrypted_aes_key) {
       const { data, aesKey, iv } = decryptFlowData(req.body);
-      console.log("📝 DATOS RECIBIDOS:", data);
+      console.log("📝 DATOS DEL FLOW:", data);
 
-      // RESPONDER AL PING DE META
+      // Responder al PING (Requerido por Meta)
       if (data.action === "ping") {
-        const pingRes = encryptResponse({ version: "3.0", data: { status: "active" } }, aesKey, iv);
-        return res.status(200).set("Content-Type", "text/plain").send(pingRes);
+        const resPing = encryptResponse({ version: "3.0", data: { status: "active" } }, aesKey, iv);
+        return res.status(200).set("Content-Type", "text/plain").send(resPing);
       }
 
-      // RESPUESTA AL FINALIZAR EL FORMULARIO
-      const finalRes = encryptResponse(
-        { screen: "SUCCESS", data: { extension_message_response: { body: "Enviado con éxito" } } },
+      // Respuesta final al completar el formulario
+      const resFinal = encryptResponse(
+        { screen: "SUCCESS", data: { extension_message_response: { body: "Recibido correctamente" } } },
         aesKey,
         iv
       );
-      return res.status(200).set("Content-Type", "text/plain").send(finalRes);
+      return res.status(200).set("Content-Type", "text/plain").send(resFinal);
     }
 
-    // 📩 MANEJO DE MENSAJES (COMANDOS)
+    // 2. Manejar Comandos de Texto (xf, cf, pc, global)
     const entry = req.body?.entry?.[0]?.changes?.[0]?.value;
-    const mensajeTexto = entry?.messages?.[0]?.text?.body;
-    const numeroRemitente = entry?.messages?.[0]?.from;
+    const msg = entry?.messages?.[0];
 
-    if (mensajeTexto) {
-      const texto = mensajeTexto.trim().toLowerCase();
+    if (msg?.text?.body) {
+      const texto = msg.text.body.trim().toLowerCase();
+
       for (const key in CONFIG) {
         if (texto === CONFIG[key].command) {
-          await enviarFlow(numeroRemitente, key);
+          await enviarFlow(msg.from, key);
           return res.sendStatus(200);
         }
       }
@@ -172,17 +165,23 @@ app.post("/webhook", async (req, res) => {
     return res.sendStatus(200);
   } catch (error) {
     console.error("❌ ERROR GENERAL:", error);
-    return res.sendStatus(500);
+    res.sendStatus(500);
   }
 });
 
-// VERIFICACIÓN DEL WEBHOOK
+// VERIFICACIÓN DEL WEBHOOK (GET)
 app.get("/webhook", (req, res) => {
-  if (req.query["hub.mode"] === "subscribe" && req.query["hub.verify_token"] === VERIFY_TOKEN) {
+  if (
+    req.query["hub.mode"] === "subscribe" &&
+    req.query["hub.verify_token"] === VERIFY_TOKEN
+  ) {
     return res.send(req.query["hub.challenge"]);
   }
   res.sendStatus(403);
 });
 
+// 🚀 INICIO
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log("🚀 SERVIDOR CORRIENDO EN:", PORT));
+app.listen(PORT, () => {
+  console.log("🚀 SERVIDOR CORRIENDO EN PUERTO:", PORT);
+});
