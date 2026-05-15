@@ -263,7 +263,7 @@ async function enviarMensaje(
   try {
 
     await axios.post(
-      `https://graph.facebook.com/v18.0/${PHONE_NUMBER_ID}/messages`,
+      `https://graph.facebook.com/v20.0/${PHONE_NUMBER_ID}/messages`,
       {
         messaging_product:
           "whatsapp",
@@ -316,7 +316,7 @@ async function enviarFlow(
   try {
 
     await axios.post(
-      `https://graph.facebook.com/v18.0/${PHONE_NUMBER_ID}/messages`,
+      `https://graph.facebook.com/v20.0/${PHONE_NUMBER_ID}/messages`,
       {
         messaging_product:
           "whatsapp",
@@ -345,6 +345,9 @@ async function enviarFlow(
               "flow",
 
             parameters: {
+
+              flow_message_version:
+                "3",
 
               flow_id:
                 "1487962506700406",
@@ -482,10 +485,7 @@ app.post(
 
     try {
 
-      // =====================================
       // 🔐 FLOW ENCRYPTED
-      // =====================================
-
       if (
         req.body
           .encrypted_aes_key
@@ -509,7 +509,7 @@ app.post(
           data
         );
 
-        // 🏓 PING META
+        // 🏓 PING
         if (
           data.action ===
           "ping"
@@ -545,7 +545,7 @@ app.post(
 
         }
 
-        // ✅ RESPUESTA FLOW
+        // ✅ RESPONSE FLOW
         const response = {
 
           screen:
@@ -574,10 +574,7 @@ app.post(
 
       }
 
-      // =====================================
       // 📲 WHATSAPP NORMAL
-      // =====================================
-
       const entry =
         req.body
           ?.entry?.[0]
@@ -595,7 +592,7 @@ app.post(
           ?.messages?.[0]
           ?.from;
 
-      // 📩 MENSAJES TEXTO
+      // 📩 TEXTO
       const mensajeTexto =
         entry
           ?.messages?.[0]
@@ -673,7 +670,7 @@ app.post(
 
       }
 
-      // 📥 FORMULARIO NORMAL
+      // 📥 FORMULARIO
       const form =
         entry
           ?.messages?.[0]
@@ -771,7 +768,7 @@ app.post(
         extras
       );
 
-      // 📩 ARMAR MENSAJE
+      // 📩 MENSAJE
       let mensaje =
         `🚖 EXALMAR FLOTA - NUEVA RESERVA\n\n`;
 
@@ -841,7 +838,7 @@ app.post(
       mensaje +=
         `\n📌 Registro: ${registroBase.fecha_registro}`;
 
-      // 📲 NOTIFICACIONES
+      // 📲 ENVÍOS
       await enviarMensaje(
         "51961507276",
         mensaje
