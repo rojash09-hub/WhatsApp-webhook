@@ -406,6 +406,7 @@ async function enviarFlow(
 
     }
 
+    // ✅ TEMPLATE SEGÚN EMPRESA
     let templateName = "";
 
     if (tipo === "EXALMAR") {
@@ -436,6 +437,89 @@ async function enviarFlow(
 
     }
 
+    // ✅ ENVIAR TEMPLATE
+    await axios.post(
+      `https://graph.facebook.com/v20.0/${PHONE_NUMBER_ID}/messages`,
+      {
+
+        messaging_product:
+          "whatsapp",
+
+        to:
+          numero,
+
+        type:
+          "template",
+
+        template: {
+
+          name:
+            templateName,
+
+          language: {
+
+            code:
+              "es_PE"
+
+          },
+
+          components: [
+            {
+
+              type:
+                "button",
+
+              sub_type:
+                "flow",
+
+              index:
+                "0",
+
+              parameters: [
+                {
+
+                  type:
+                    "action",
+
+                  action: {
+
+                    flow_token:
+                      "FLOW_TOKEN"
+
+                  }
+
+                }
+              ]
+
+            }
+          ]
+
+        }
+
+      },
+      {
+        headers: {
+
+          Authorization:
+            `Bearer ${WHATSAPP_TOKEN}`,
+
+          "Content-Type":
+            "application/json"
+
+        }
+      }
+    );
+
+  } catch (error) {
+
+    console.error(
+      "❌ ERROR FLOW:",
+      error.response?.data || error
+    );
+
+  }
+
+}
     // ✅ TEMPLATE
     await axios.post(
       `https://graph.facebook.com/v20.0/${PHONE_NUMBER_ID}/messages`,
