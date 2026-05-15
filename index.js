@@ -24,13 +24,69 @@ const PHONE_NUMBER_ID =
 
 const PRIVATE_KEY =
   process.env.PRIVATE_KEY_ACCOUNT
-    ? process.env
-        .PRIVATE_KEY_ACCOUNT
+    ? process.env.PRIVATE_KEY_ACCOUNT
         .replace(/\\n/g, "\n")
         .replace(/\r/g, "")
     : null;
 
-// 🇵🇪 FECHA PERÚ
+// 📊 GOOGLE SHEETS
+const CONFIG = {
+
+  EXALMAR: {
+
+    title:
+      "EXALMAR FLOTA",
+
+    flowId:
+      "1487962506700406",
+
+    spreadsheetId:
+      "1LM9JMK8yySI9CVCe785bDdsi-j1fFaJPpvIE19zDkiw"
+
+  },
+
+  CENTINELA: {
+
+    title:
+      "CENTINELA FLOTA",
+
+    flowId:
+      "1562186275266854",
+
+    spreadsheetId:
+      "1z7C4HyHc3VIMxnGHWLbDTynXslutqP5gT-j_zMW1dIU"
+
+  },
+
+  PLANTA_CALLAO: {
+
+    title:
+      "PLANTA CALLAO",
+
+    flowId:
+      "3257150361132563",
+
+    spreadsheetId:
+      "189ivlWlIESMcZ05_D12-5bpBIPPvLwStaRxSUfxZ2aI"
+
+  },
+
+  GLOBAL: {
+
+    title:
+      "GLOBAL",
+
+    flowId:
+      "2051713752436319",
+
+    spreadsheetId:
+      "1reGQpDdBpgtE0Wd4s2xM17x2dzzEIpV-DL2qEsvJgVc"
+
+  }
+
+};
+
+// 🇵🇪 FECHA/HORA PERÚ
 function fechaPeru() {
 
   return new Date(
@@ -46,68 +102,24 @@ function fechaPeru() {
 }
 
 // 🔠 MAYÚSCULAS
-const upper = (text) =>
-  text
+function upper(text) {
+
+  return text
     ? text.toString().toUpperCase()
     : "";
 
-// 📊 CONFIG FLOWS
-const CONFIG = {
-
-  EXALMAR: {
-
-    title:
-      "EXALMAR FLOTA",
-
-    sheetId:
-      "1LM9JMK8yySI9CVCe785bDdsi-j1fFaJPpvIE19zDkiw"
-
-  },
-
-  CENTINELA: {
-
-    title:
-      "CENTINELA FLOTA",
-
-    sheetId:
-      "1z7C4HyHc3VIMxnGHWLbDTynXslutqP5gT-j_zMW1dIU"
-
-  },
-
-  PLANTA_CALLAO: {
-
-    title:
-      "PLANTA CALLAO",
-
-    sheetId:
-      "189ivlWlIESMcZ05_D12-5bpBIPPvLwStaRxSUfxZ2aI"
-
-  },
-
-  GLOBAL: {
-
-    title:
-      "GLOBAL",
-
-    sheetId:
-      "1reGQpDdBpgtE0Wd4s2xM17x2dzzEIpV-DL2qEsvJgVc"
-
-  }
-
-};
+}
 
 // ❤️ HEALTH
 app.get("/", (req, res) => {
 
-  return res
-    .status(200)
-    .json({
-      status: "ok"
-    });
+  return res.status(200).json({
+    status: "ok"
+  });
 
 });
 
-// ✅ VERIFY WEBHOOK
+// ✅ VERIFY
 app.get("/webhook", (req, res) => {
 
   const mode =
@@ -135,9 +147,7 @@ app.get("/webhook", (req, res) => {
 });
 
 // 🔓 DESCIFRAR FLOW
-function decryptFlowData(
-  body
-) {
+function decryptFlowData(body) {
 
   const encryptedAesKey =
     Buffer.from(
@@ -169,21 +179,15 @@ function decryptFlowData(
 
         oaepHash:
           "sha256"
-
       },
       encryptedAesKey
     );
 
   const authTag =
-    encryptedData.slice(
-      -16
-    );
+    encryptedData.slice(-16);
 
   const cipherText =
-    encryptedData.slice(
-      0,
-      -16
-    );
+    encryptedData.slice(0, -16);
 
   const decipher =
     crypto.createDecipheriv(
@@ -198,9 +202,7 @@ function decryptFlowData(
 
   const decrypted =
     Buffer.concat([
-      decipher.update(
-        cipherText
-      ),
+      decipher.update(cipherText),
       decipher.final()
     ]);
 
@@ -208,9 +210,7 @@ function decryptFlowData(
 
     data:
       JSON.parse(
-        decrypted.toString(
-          "utf8"
-        )
+        decrypted.toString("utf8")
       ),
 
     aesKey,
@@ -220,7 +220,7 @@ function decryptFlowData(
 
 }
 
-// 🔁 INVERTIR IV
+// 🔁 FLIP IV
 function flipIv(iv) {
 
   const flipped =
@@ -241,7 +241,7 @@ function flipIv(iv) {
 
 }
 
-// 🔐 CIFRAR RESPUESTA
+// 🔐 ENCRYPT
 function encryptResponse(
   response,
   aesKey,
@@ -260,17 +260,13 @@ function encryptResponse(
 
   const payload =
     Buffer.from(
-      JSON.stringify(
-        response
-      ),
+      JSON.stringify(response),
       "utf8"
     );
 
   const encrypted =
     Buffer.concat([
-      cipher.update(
-        payload
-      ),
+      cipher.update(payload),
       cipher.final()
     ]);
 
@@ -282,9 +278,7 @@ function encryptResponse(
       encrypted,
       authTag
     ])
-    .toString(
-      "base64"
-    );
+    .toString("base64");
 
 }
 
@@ -337,10 +331,93 @@ async function enviarMensaje(
 
 }
 
+// 📲 ENVIAR FLOW
+async function enviarFlow(
+  numero,
+  flowId
+) {
+
+  try {
+
+    await axios.post(
+      `https://graph.facebook.com/v20.0/${PHONE_NUMBER_ID}/messages`,
+      {
+        messaging_product:
+          "whatsapp",
+
+        to:
+          numero,
+
+        type:
+          "interactive",
+
+        interactive: {
+
+          type:
+            "flow",
+
+          body: {
+
+            text:
+              "🚖 FORMULARIO DE RESERVA"
+
+          },
+
+          action: {
+
+            name:
+              "flow",
+
+            parameters: {
+
+              flow_message_version:
+                "3",
+
+              flow_id:
+                flowId,
+
+              flow_cta:
+                "ABRIR FORMULARIO"
+
+            }
+
+          }
+
+        }
+      },
+      {
+        headers: {
+
+          Authorization:
+            `Bearer ${WHATSAPP_TOKEN}`,
+
+          "Content-Type":
+            "application/json"
+
+        }
+      }
+    );
+
+    console.log(
+      "✅ FLOW ENVIADO:",
+      flowId
+    );
+
+  } catch (error) {
+
+    console.error(
+      "❌ Error Flow:",
+      error.response?.data || error
+    );
+
+  }
+
+}
+
 // 🔢 CORRELATIVO
 async function generarCorrelativo(
   sheets,
-  sheetId
+  spreadsheetId
 ) {
 
   try {
@@ -351,8 +428,7 @@ async function generarCorrelativo(
         .values
         .get({
 
-          spreadsheetId:
-            sheetId,
+          spreadsheetId,
 
           range:
             "Data!B:B"
@@ -364,7 +440,12 @@ async function generarCorrelativo(
 
     return 100 + rows.length;
 
-  } catch {
+  } catch (error) {
+
+    console.error(
+      "❌ Error correlativo:",
+      error
+    );
 
     return 101;
 
@@ -372,7 +453,7 @@ async function generarCorrelativo(
 
 }
 
-// 📊 GUARDAR SHEETS
+// 📊 GUARDAR SHEET
 async function guardarEnSheet(
   tipo,
   registroBase,
@@ -381,13 +462,26 @@ async function guardarEnSheet(
 
   try {
 
+    const cfg =
+      CONFIG[tipo];
+
+    if (!cfg) {
+
+      console.log(
+        "❌ CONFIG NO EXISTE:",
+        tipo
+      );
+
+      return null;
+
+    }
+
     const auth =
       new google.auth.GoogleAuth({
 
         credentials:
           JSON.parse(
-            process.env
-              .GOOGLE_CREDENTIALS
+            process.env.GOOGLE_CREDENTIALS
           ),
 
         scopes: [
@@ -398,63 +492,57 @@ async function guardarEnSheet(
 
     const sheets =
       google.sheets({
+
         version:
           "v4",
+
         auth
+
       });
-
-    const cfg =
-      CONFIG[tipo];
-
-    const sheetId =
-      cfg.sheetId;
 
     const correlativo =
       await generarCorrelativo(
         sheets,
-        sheetId
+        cfg.spreadsheetId
       );
 
-    const values = [
-      [
+    const values = [[
 
-        registroBase.titulo,
+      registroBase.titulo || "",
 
-        correlativo,
+      correlativo || "",
 
-        registroBase.fecha || "",
+      registroBase.empresa || "",
 
-        registroBase.hora || "",
+      registroBase.fecha || "",
 
-        registroBase.solicitante ||
-        registroBase.autoriza ||
-        registroBase.empresa ||
-        "",
+      registroBase.hora || "",
 
-        registroBase.tipo_unidad || "",
+      registroBase.solicitante || "",
 
-        registroBase.usuario ||
-        registroBase.nombre ||
-        "",
+      registroBase.tipo || "",
 
-        registroBase.inicio || "",
+      registroBase.usuario || "",
 
-        registroBase.destino || "",
+      registroBase.autoriza || "",
 
-        "",
+      registroBase.nombre || "",
 
-        "",
+      registroBase.inicio || "",
 
-        registroBase.observaciones || "",
+      registroBase.destino || "",
 
-        JSON.stringify(
-          extras
-        ),
+      "",
 
-        registroBase.fecha_registro
+      "",
 
-      ]
-    ];
+      registroBase.observaciones || "",
+
+      JSON.stringify(extras),
+
+      registroBase.fecha_registro || ""
+
+    ]];
 
     await sheets
       .spreadsheets
@@ -462,10 +550,10 @@ async function guardarEnSheet(
       .append({
 
         spreadsheetId:
-          sheetId,
+          cfg.spreadsheetId,
 
         range:
-          "Data!A:N",
+          "Data!A:Q",
 
         valueInputOption:
           "USER_ENTERED",
@@ -476,13 +564,17 @@ async function guardarEnSheet(
 
       });
 
+    console.log(
+      `✅ GUARDADO EN ${tipo}`
+    );
+
     return correlativo;
 
   } catch (error) {
 
     console.error(
       "❌ Error Sheets:",
-      error
+      error.response?.data || error
     );
 
     return null;
@@ -521,14 +613,20 @@ app.post(
           "ping"
         ) {
 
+          const pingResponse = {
+
+            data: {
+
+              status:
+                "active"
+
+            }
+
+          };
+
           const encryptedResponse =
             encryptResponse(
-              {
-                data: {
-                  status:
-                    "active"
-                }
-              },
+              pingResponse,
               aesKey,
               iv
             );
@@ -545,13 +643,18 @@ app.post(
 
         }
 
+        const response = {
+
+          screen:
+            "SUCCESS",
+
+          data: {}
+
+        };
+
         const encryptedResponse =
           encryptResponse(
-            {
-              screen:
-                "SUCCESS",
-              data: {}
-            },
+            response,
             aesKey,
             iv
           );
@@ -586,7 +689,70 @@ app.post(
           ?.messages?.[0]
           ?.from;
 
-      // 🔥 FORM
+      // 📩 TEXTO
+      const mensajeTexto =
+        entry
+          ?.messages?.[0]
+          ?.text?.body;
+
+      if (mensajeTexto) {
+
+        const texto =
+          mensajeTexto
+            .trim()
+            .toLowerCase();
+
+        // XF
+        if (texto === "xf") {
+
+          await enviarFlow(
+            numeroRemitente,
+            CONFIG.EXALMAR.flowId
+          );
+
+          return res.sendStatus(200);
+
+        }
+
+        // CF
+        if (texto === "cf") {
+
+          await enviarFlow(
+            numeroRemitente,
+            CONFIG.CENTINELA.flowId
+          );
+
+          return res.sendStatus(200);
+
+        }
+
+        // PC
+        if (texto === "pc") {
+
+          await enviarFlow(
+            numeroRemitente,
+            CONFIG.PLANTA_CALLAO.flowId
+          );
+
+          return res.sendStatus(200);
+
+        }
+
+        // GLOBAL
+        if (texto === "global") {
+
+          await enviarFlow(
+            numeroRemitente,
+            CONFIG.GLOBAL.flowId
+          );
+
+          return res.sendStatus(200);
+
+        }
+
+      }
+
+      // 📥 FORM
       let form =
         entry
           ?.messages?.[0]
@@ -600,7 +766,7 @@ app.post(
 
       }
 
-      // 🔥 STRING → OBJETO
+      // STRING → JSON
       if (
         typeof form === "string"
       ) {
@@ -615,41 +781,61 @@ app.post(
         form
       );
 
-      // ✅ DETECTAR FLOW
-      let tipo = "EXALMAR";
+      // 🔥 TIPO
+      let tipo =
+        "EXALMAR";
 
       if (
-        form.nombre !== undefined &&
-        form.autoriza !== undefined
+        form.tipo_flujo
       ) {
 
-        tipo = "EXALMAR";
+        tipo =
+          form.tipo_flujo;
 
       }
 
-      else if (
-        form.solicitante !== undefined &&
-        form.tipo_unidad !== undefined
+      // FALLBACK POR FLOW TOKEN
+      if (
+        form.flow_token
       ) {
 
-        tipo = "CENTINELA";
+        const ft =
+          form.flow_token
+            .toString()
+            .toUpperCase();
 
-      }
+        if (
+          ft.includes(
+            "CENTINELA"
+          )
+        ) {
 
-      else if (
-        form.solicitante !== undefined &&
-        form.tipo_unidad === undefined
-      ) {
+          tipo =
+            "CENTINELA";
 
-        tipo = "PLANTA_CALLAO";
+        }
 
-      }
+        if (
+          ft.includes(
+            "PLANTA"
+          )
+        ) {
 
-      else if (
-        form.empresa !== undefined
-      ) {
+          tipo =
+            "PLANTA_CALLAO";
 
-        tipo = "GLOBAL";
+        }
+
+        if (
+          ft.includes(
+            "GLOBAL"
+          )
+        ) {
+
+          tipo =
+            "GLOBAL";
+
+        }
 
       }
 
@@ -667,7 +853,7 @@ app.post(
 
       }
 
-      // ✅ BASE
+      // BASE
       const registroBase = {
 
         titulo:
@@ -683,11 +869,12 @@ app.post(
 
       const extras = {};
 
-      // 🔥 RECORRER
+      // 🔥 CAMPOS
       for (const key in form) {
 
         if (
-          key === "flow_token"
+          key === "flow_token" ||
+          key === "tipo_flujo"
         ) {
 
           continue;
@@ -697,7 +884,7 @@ app.post(
         let value =
           form[key];
 
-        // 🔥 OTROS
+        // OTROS
         if (
           value === "OTROS" &&
           form[
@@ -712,10 +899,11 @@ app.post(
 
         }
 
+        // MAYÚSCULAS
         value =
           upper(value);
 
-        // 📅 HOY
+        // FECHA
         if (
           key === "fecha" &&
           value === "HOY"
@@ -729,7 +917,7 @@ app.post(
 
         }
 
-        // ⏰ AHORA
+        // HORA
         if (
           key === "hora" &&
           (
@@ -756,17 +944,13 @@ app.post(
 
         }
 
-        registroBase[
-          key
-        ] = value;
+        registroBase[key] =
+          value;
 
-        extras[
-          key
-        ] = value;
+        extras[key] =
+          value;
 
       }
-
-      delete extras.flow_token;
 
       // 📊 GUARDAR
       const correlativo =
@@ -814,7 +998,7 @@ app.post(
       mensaje +=
         `\n📌 REGISTRO: ${registroBase.fecha_registro}`;
 
-      // 📲 ENVIOS
+      // 📲 ENVÍOS
       await enviarMensaje(
         "51961507276",
         mensaje
@@ -862,7 +1046,7 @@ app.listen(
   () => {
 
     console.log(
-      "🚀 SERVER:",
+      "🚀 SERVIDOR:",
       PORT
     );
 
